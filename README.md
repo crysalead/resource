@@ -1,14 +1,14 @@
 # Resource - Resource Dispatching Strategy
 
-[![Build Status](https://travis-ci.org/crysalead/router-resource.svg?branch=master)](https://travis-ci.org/crysalead/router-resource)
-[![Code Coverage](https://scrutinizer-ci.com/g/crysalead/router-resource/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/crysalead/router-resource/)
+[![Build Status](https://travis-ci.org/crysalead/resource.svg?branch=master)](https://travis-ci.org/crysalead/router-resource)
+[![Code Coverage](https://scrutinizer-ci.com/g/crysalead/resource/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/crysalead/resource/)
 
 Resource dispatching strategy for [router](https://github.com/crysalead/router).
 
 ## Installation
 
 ```bash
-composer require crysalead/router-resource
+composer require crysalead/resource
 ```
 
 ## API
