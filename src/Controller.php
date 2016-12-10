@@ -238,15 +238,13 @@ class Controller
 
         $runs = 0;
         $success = true;
+        $status = 500;
         $errors = [];
 
         foreach ($this->args($action, $request) as $args) {
             try {
                 $resource = $args[0];
                 $status = $this->_run($action, $args, $resource);
-                // if ($success >= 400) {
-                //     $success = false;
-                // }
                 $runs++;
 
                 if ($runs > 1 && $method === 'GET') {
@@ -274,6 +272,7 @@ class Controller
             'status'      => $status,
             'template'    => $this->_template ?: strtolower($controller) . '/' . $action,
             'layout'      => $this->_layout,
+            'errors'      => $errors,
             'data'        => $this->data()
         ];
 

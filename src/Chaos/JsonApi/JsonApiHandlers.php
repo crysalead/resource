@@ -224,6 +224,11 @@ trait JsonApiHandlers
         if (isset($q['page'])) {
             $query = $query + array_intersect_key($q['page'], array_fill_keys(['limit', 'offset', 'page'], true));
         }
+        if (isset($q['filter']) && is_array($q['filter'])) {
+            foreach ($q['filter'] as $key => $value) {
+                $query['filter'][$key] = strpos($value, ',') !== false ? explode(',', $value) : $value;
+            }
+        }
         return $query;
     }
 
