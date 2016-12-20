@@ -369,12 +369,12 @@ class Payload
     /**
      * Extracts the resource name from an instance.
      *
-     * @param object $instance The collection/entity instance.
+     * @param object $instance The entity instance.
      * @param string           The Resource name
      */
     protected function _name($instance)
     {
-        $model = $instance->model();
+        $model = $instance->self();
         return substr(strrchr($model, '\\'), 1);
     }
 

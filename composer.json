@@ -10,7 +10,7 @@
     ],
     "require": {
         "php": ">=5.5",
-        "crysalead/chaos": "dev-master",
+        "crysalead/chaos-orm": "dev-master",
         "crysalead/inflector": "^2.0",
         "crysalead/net": "dev-master",
         "crysalead/router": "~3.0",
