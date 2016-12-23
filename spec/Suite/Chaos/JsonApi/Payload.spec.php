@@ -88,11 +88,11 @@ describe("Payload", function() use ($connection) {
             $payload->delete($images);
             expect($payload->serialize())->toEqual([
                 'data' => [
-                    ['type' => 'image', 'id' => 1],
-                    ['type' => 'image', 'id' => 2],
-                    ['type' => 'image', 'id' => 3],
-                    ['type' => 'image', 'id' => 4],
-                    ['type' => 'image', 'id' => 5]
+                    ['type' => 'Image', 'id' => 1],
+                    ['type' => 'Image', 'id' => 2],
+                    ['type' => 'Image', 'id' => 3],
+                    ['type' => 'Image', 'id' => 4],
+                    ['type' => 'Image', 'id' => 5]
                 ]
             ]);
 
@@ -169,7 +169,7 @@ describe("Payload", function() use ($connection) {
             $payload = new Payload();
             $payload->set($image);
             expect($payload->data())->toBe([
-                'type' => 'image',
+                'type' => 'Image',
                 'attributes' => [
                     'title' => 'Amiga 1200',
                     'gallery' => [
@@ -201,7 +201,7 @@ describe("Payload", function() use ($connection) {
             expect($payload->isCollection())->toBe(false);
 
             expect($payload->data())->toBe([
-                'type' => 'image',
+                'type' => 'Image',
                 'id' => 1,
                 'attributes' => [
                     'gallery_id' => 1,
@@ -211,18 +211,18 @@ describe("Payload", function() use ($connection) {
                 'relationships' => [
                     'gallery' => [
                         'data' => [
-                            'type' => 'gallery',
+                            'type' => 'Gallery',
                             'id' => 1
                         ]
                     ],
                     'tags' => [
                         'data' => [
                             [
-                                'type' => 'tag',
+                                'type' => 'Tag',
                                 'id' => 1
                             ],
                             [
-                                'type' => 'tag',
+                                'type' => 'Tag',
                                 'id' => 3
                             ]
                         ]
@@ -232,14 +232,14 @@ describe("Payload", function() use ($connection) {
 
             expect($payload->included())->toBe([
                 [
-                    'type' => 'gallery',
+                    'type' => 'Gallery',
                     'id' => 1,
                     'attributes' => [
                         'name' => 'Foo Gallery'
                     ]
                 ],
                 [
-                    'type' => 'image_tag',
+                    'type' => 'ImageTag',
                     'id' => 1,
                     'attributes' => [
                         'image_id' => 1,
@@ -247,7 +247,7 @@ describe("Payload", function() use ($connection) {
                     ]
                 ],
                 [
-                    'type' => 'image_tag',
+                    'type' => 'ImageTag',
                     'id' => 2,
                     'attributes' => [
                         'image_id' => 1,
@@ -255,14 +255,14 @@ describe("Payload", function() use ($connection) {
                     ]
                 ],
                 [
-                    'type' => 'tag',
+                    'type' => 'Tag',
                     'id' => 1,
                     'attributes' => [
                         'name' => 'High Tech'
                     ]
                 ],
                 [
-                    'type' => 'tag',
+                    'type' => 'Tag',
                     'id' => 3,
                     'attributes' => [
                         'name' => 'Computer'
@@ -285,7 +285,7 @@ describe("Payload", function() use ($connection) {
 
             expect($payload->data())->toBe([
                 [
-                    'type' => 'image',
+                    'type' => 'Image',
                     'id' => 1,
                     'attributes' => [
                         'gallery_id' => 1,
@@ -294,7 +294,7 @@ describe("Payload", function() use ($connection) {
                     ]
                 ],
                 [
-                    'type' => 'image',
+                    'type' => 'Image',
                     'id' => 2,
                     'attributes' => [
                         'gallery_id' => 1,

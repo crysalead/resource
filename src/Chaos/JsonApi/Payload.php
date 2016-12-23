@@ -390,7 +390,10 @@ class Payload
         $definition = $entity::definition();
         $key = $entity::definition()->key();
 
-        $result = ['type' => $definition->source()];
+        $class = $entity->self();
+        $pos = strrpos($class, '\\');
+        $basename = substr($class, $pos !== false ? $pos + 1 : 0);
+        $result = ['type' => $basename];
 
         if ($entity->exists()) {
             $result['id'] = $entity->id();

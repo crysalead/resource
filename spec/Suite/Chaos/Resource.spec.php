@@ -61,11 +61,10 @@ describe("Resource", function() use ($connection) {
 
         $route->dispatch($this->response);
         expect($route->params)->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'resource' => 'gallery',
-            'id'       => '1',
-            'action'   => null
+            'relations' => [],
+            'resource'  => 'gallery',
+            'id'        => '1',
+            'action'    => null
         ]);
 
         $data = $route->dispatched->data();
@@ -85,11 +84,10 @@ describe("Resource", function() use ($connection) {
 
         $route->dispatch($this->response);
         expect($route->params)->toBe([
-            'relation' => 'gallery',
-            'rid'      => '1',
-            'resource' => 'image',
-            'id'       => null,
-            'action'   => null
+            'relations' => [['gallery', '1']],
+            'resource'  => 'image',
+            'id'        => null,
+            'action'    => null
         ]);
 
         $data = $route->dispatched->data();

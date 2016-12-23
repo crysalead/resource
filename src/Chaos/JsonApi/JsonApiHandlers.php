@@ -159,21 +159,49 @@ trait JsonApiHandlers
         if (isset($params['id'])) {
             return [$this->_key => [$params['id']]];
         }
-        if (!isset($params['rid'])) {
+        if (!isset($params['relations'])) {
             return [];
         }
 
-        $rid = $params['rid'];
+        $conditions = [];
         $definition = $model::definition();
-        $rel = $definition->relation($params['relation']);
-        $type = $rel->type();
 
-        if ($type === 'hasManyThrough') {
+        $relations = array_reverse($params['relations']);
+        foreach ($relations as $key => $parts) {
+            $rel = $definition->relation($parts[0]);
+            if ($rel->type() !== 'belongsTo') {
+                break;
+            }
+            unset($relations[$key]);
+            $conditions[$rel->keys('from')] = $parts[1];
+        }
+
+        if (count($relations) === 1) {
+            $parts = reset($relations);
+            $rel = $definition->relation($parts[0]);
+            $id = $parts[1];
+            $conditions += $this->_relatedIds($rel, $id);
+        } elseif ($relations) {
+            throw new Exception('Invalid URL, only one has<One|Many|ManyThrough> relationship is allowed');
+        }
+        return $conditions;
+    }
+
+    /**
+     * Returns the resource id(s) condition to load the resources depending of a specific has<One|Many|ManyThrough> relationship.
+     *
+     * @param  string $model   A fully namespaced model class name.
+     * @param  array  $request The request.
+     * @return array           A list of resource id(s) matching constraints.
+     */
+    protected function _relatedIds($rel, $id)
+    {
+        if ($rel->type() === 'hasManyThrough') {
             $relThrough = $definition->relation($rel->through());
             $pivot = $relThrough->to();
             $relBelongsTo = $pivot::definition()->relation($rel->using());
             $to = $relBelongsTo->to();
-            $entity = $to::first(['conditions' => [$this->_rkey => $rid]]);
+            $entity = $to::first(['conditions' => [$this->_key => $id]]);
 
             $collection = $pivot::all([
                 'conditions' => [
@@ -183,9 +211,8 @@ trait JsonApiHandlers
             $rel = $relThrough;
         } else {
             $to = $rel->to();
-            $collection = $to::all(['conditions' => [$this->_rkey => $rid]]);
+            $collection = $to::all(['conditions' => [$this->_key => $id]]);
         }
-
         $keys = [];
         foreach ($collection as $entity) {
             $keys[] = $entity->{$rel->keys('to')};
@@ -193,7 +220,7 @@ trait JsonApiHandlers
         if (!$keys) {
             throw new ResourceException("No valid relationship has been found for `{$this->name()}` resource.", 404);
         }
-        return $keys ? [$rel->keys('from') => $keys] : [];
+        return [$rel->keys('from') => $keys];
     }
 
     /**

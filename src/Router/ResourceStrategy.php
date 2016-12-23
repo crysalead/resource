@@ -16,19 +16,19 @@ class ResourceStrategy
     protected $_key = 'id';
 
     /**
-     * Mapping beetwen the relation identifier name in the route pattern
-     * and the resource identifer name.
-     *
-     * @var string
-     */
-    protected $_rkey = 'id';
-
-    /**
      * Keys regexp pattern format.
      *
      * @var string
      */
     protected $_format = '[^/:][^/]*';
+
+    /**
+     * Mapping beetwen the relation identifier name in the route pattern
+     * and the resource identifer name.
+     *
+     * @var string
+     */
+    protected $_relations = '[^/]+/[^/:][^/]*';
 
     /**
      * Resource controller class name suffix.
@@ -45,15 +45,15 @@ class ResourceStrategy
     public function __construct($config = [])
     {
         $defaults = [
-            'key'    => 'id',
-            'rkey'   => 'id',
-            'suffix' => 'Controller',
-            'format' => '[^/:][^/]*'
+            'key'       => 'id',
+            'suffix'    => 'Controller',
+            'format'    => '[^/:][^/]*',
+            'relations' => '[^/]+/[^/:][^/]*'
         ];
         $config += $defaults;
 
         $this->_key = $config['key'];
-        $this->_rkey = $config['rkey'];
+        $this->_relations = $config['relations'];
         $this->_format = $config['format'];
         $this->_suffix = $config['suffix'];
     }
@@ -69,20 +69,19 @@ class ResourceStrategy
     public function __invoke($router, $resource, $options = [])
     {
         $options += [
-            'name'   => $resource,
-            'key'    => $this->_key,
-            'format' => $this->_format,
-            'rkey'   => $this->_rkey,
-            'rformat' => $this->_format,
+            'name'      => $resource,
+            'key'       => $this->_key,
+            'format'    => $this->_format,
+            'relations' => $this->_relations,
             'action' => ':{action}'
         ];
         $slug = Inflector::dasherize(Inflector::underscore($resource));
         $path = '{resource:' . $slug . '}';
 
         $placeholder = '{id:' . $options['format'] . '}';
-        $rplaceholder = '{rid:' . $options['rformat'] . '}';
+        $rplaceholder = '{relations:' . $options['relations'] . '}';
 
-        $pattern = '[{relation}/' . $rplaceholder . '/]' . $path . '[/' . $placeholder . ']' . '[/' . $options['action'] . ']';
+        $pattern = '[' . $rplaceholder . '/]*' . $path . '[/' . $placeholder . ']' . '[/' . $options['action'] . ']';
 
         $options['params'] = ['resource' => $slug];
 

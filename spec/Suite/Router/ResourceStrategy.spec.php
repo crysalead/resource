@@ -22,11 +22,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('routing-test', 'GET');
         $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'resource' => 'routing-test',
-            'id'       => null,
-            'action'   => null
+            'relations' => [],
+            'resource'  => 'routing-test',
+            'id'        => null,
+            'action'    => null
         ]);
         expect($route->request->method())->toBe('GET');
         expect($route->response)->toBe($response);
@@ -34,11 +33,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('routing-test/123', 'GET');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'resource' => 'routing-test',
-            'id'       => '123',
-            'action'   => null
+            'relations' => [],
+            'resource'  => 'routing-test',
+            'id'        => '123',
+            'action'    => null
         ]);
         expect($route->request->method())->toBe('GET');
         expect($route->response)->toBe($response);
@@ -46,11 +44,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('routing-test/:create', 'GET');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'resource' => 'routing-test',
-            'id'       => null,
-            'action'   => 'create'
+            'relations' => [],
+            'resource'  => 'routing-test',
+            'id'        => null,
+            'action'    => 'create'
         ]);
         expect($route->request->method())->toBe('GET');
         expect($route->response)->toBe($response);
@@ -58,11 +55,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('routing-test', 'POST');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'resource' => 'routing-test',
-            'id'       => null,
-            'action'   => null
+            'relations' => [],
+            'resource'  => 'routing-test',
+            'id'        => null,
+            'action'    => null
         ]);
         expect($route->request->method())->toBe('POST');
         expect($route->response)->toBe($response);
@@ -70,11 +66,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('routing-test/123/:edit', 'GET');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'resource' => 'routing-test',
-            'id'       => '123',
-            'action'   => 'edit'
+            'relations' => [],
+            'resource'  => 'routing-test',
+            'id'        => '123',
+            'action'    => 'edit'
         ]);
         expect($route->request->method())->toBe('GET');
         expect($route->response)->toBe($response);
@@ -82,11 +77,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('routing-test/123', 'PATCH');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'resource' => 'routing-test',
-            'id'       => '123',
-            'action'   => null
+            'relations' => [],
+            'resource'  => 'routing-test',
+            'id'        => '123',
+            'action'    => null
         ]);
         expect($route->request->method())->toBe('PATCH');
         expect($route->response)->toBe($response);
@@ -94,11 +88,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('routing-test/123', 'DELETE');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'resource' => 'routing-test',
-            'id'       => '123',
-            'action'   => null
+            'relations' => [],
+            'resource'  => 'routing-test',
+            'id'        => '123',
+            'action'    => null
         ]);
         expect($route->request->method())->toBe('DELETE');
         expect($route->response)->toBe($response);
@@ -114,13 +107,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('relation-name/456/routing-test', 'GET');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'relation' => 'relation-name',
-            'rid'      => '456',
-            'resource' => 'routing-test',
-            'id'       => null,
-            'action'   => null
+            'relations' => [['relation-name', '456']],
+            'resource'  => 'routing-test',
+            'id'        => null,
+            'action'    => null
         ]);
         expect($route->request->method())->toBe('GET');
         expect($route->response)->toBe($response);
@@ -128,13 +118,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('relation-name/456/routing-test/:create', 'GET');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'relation' => 'relation-name',
-            'rid'      => '456',
-            'resource' => 'routing-test',
-            'id'       => null,
-            'action'   => 'create'
+            'relations' => [['relation-name', '456']],
+            'resource'  => 'routing-test',
+            'id'        => null,
+            'action'    => 'create'
         ]);
         expect($route->request->method())->toBe('GET');
         expect($route->response)->toBe($response);
@@ -142,13 +129,10 @@ describe("ResourceStrategy", function() {
         $route = $r->route('relation-name/456/routing-test', 'POST');
         $route = $route->dispatch($response);
         expect($route->request->params())->toBe([
-            'relation' => null,
-            'rid'      => null,
-            'relation' => 'relation-name',
-            'rid'      => '456',
-            'resource' => 'routing-test',
-            'id'       => null,
-            'action'   => null
+            'relations' => [['relation-name', '456']],
+            'resource'  => 'routing-test',
+            'id'        => null,
+            'action'    => null
         ]);
         expect($route->request->method())->toBe('POST');
         expect($route->response)->toBe($response);

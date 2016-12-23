@@ -69,13 +69,6 @@ class Controller
     protected $_key = 'id';
 
     /**
-     * The relation identifier field name.
-     *
-     * @var string
-     */
-    protected $_rkey = 'id';
-
-    /**
      * Suffix to ignore.
      *
      * @see Controller::name()
@@ -160,7 +153,6 @@ class Controller
     {
         $defaults = [
             'key'           => 'id',
-            'rkey'          => 'id',
             'suffix'        => 'Controller',
             'handlers'      => $this->_handlers(),
             'router'        => null
@@ -168,7 +160,6 @@ class Controller
         $config += $defaults;
 
         $this->_key = $config['key'];
-        $this->_rkey = $config['rkey'];
         $this->_suffix = $config['suffix'];
         $this->handlers($config['handlers']);
         $this->router($config['router']);
