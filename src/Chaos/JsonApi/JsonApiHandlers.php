@@ -44,12 +44,12 @@ trait JsonApiHandlers
     protected function _state($resource)
     {
         $handlers = [
-            'Chaos\Collection' => function($resource) {
+            'Chaos\ORM\Collection' => function($resource) {
                 $exists = $resource->invoke('exists');
                 $validates = $resource->invoke('validates');
                 return ['exists' => $resource->exists(), 'valid' => $resource->validates()];
             },
-            'Chaos\Model' => function($resource) {
+            'Chaos\ORM\Model' => function($resource) {
                 return ['exists' => $resource->exists(), 'valid' => $resource->validates()];
             }
         ];

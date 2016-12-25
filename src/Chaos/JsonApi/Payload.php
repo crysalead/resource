@@ -4,9 +4,9 @@ namespace Lead\Resource\Chaos\JsonApi;
 use Lead\Inflector\Inflector;
 use Lead\Net\Http\Media;
 use Lead\Resource\ResourceException;
-use Chaos\Model;
-use Chaos\Collection\Collection;
-use Chaos\Collection\Through;
+use Chaos\ORM\Model;
+use Chaos\ORM\Collection\Collection;
+use Chaos\ORM\Collection\Through;
 
 /**
  * JSON-API payload.
