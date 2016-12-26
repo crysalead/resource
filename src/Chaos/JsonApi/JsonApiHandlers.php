@@ -197,6 +197,8 @@ trait JsonApiHandlers
     protected function _relatedIds($rel, $id)
     {
         if ($rel->type() === 'hasManyThrough') {
+            $model = $rel->from();
+            $definition = $model::definition();
             $relThrough = $definition->relation($rel->through());
             $pivot = $relThrough->to();
             $relBelongsTo = $pivot::definition()->relation($rel->using());
@@ -218,7 +220,7 @@ trait JsonApiHandlers
             $keys[] = $entity->{$rel->keys('to')};
         }
         if (!$keys) {
-            throw new ResourceException("No valid relationship has been found for `{$this->name()}` resource.", 404);
+            throw new ResourceException("Relationships not found can't load the `{$this->name()}` resource.", 404);
         }
         return [$rel->keys('from') => $keys];
     }
