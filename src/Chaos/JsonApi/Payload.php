@@ -299,7 +299,11 @@ class Payload
             $data['relationships'] = array_filter($data['relationships']);
         }
         if (isset($data['attributes'])) {
-            $data['attributes'] = array_filter($data['attributes']);
+            foreach ($data['attributes'] as $key => $value) {
+                if ($value === null) {
+                    unset($data['attributes'][$key]);
+                }
+            }
         }
         foreach($through as $rel) {
             unset($data['attributes'][$rel->through()]);

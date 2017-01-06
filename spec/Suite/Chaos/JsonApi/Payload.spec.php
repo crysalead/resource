@@ -321,6 +321,29 @@ describe("Payload", function() use ($connection) {
             expect($payload->serialize())->toEqual(json_decode($json, true));
         });
 
+        it("filters out only `null` values", function() {
+
+            $image = Image::create([
+                'id' => 1,
+                'gallery_id' => 0,
+                'name' => null,
+                'title' => ''
+            ], ['exists' => true]);
+
+            $payload = new Payload();
+            $payload->set($image);
+
+            expect($payload->data())->toBe([
+                'type' => 'Image',
+                'id' => 1,
+                'attributes' => [
+                    'gallery_id' => 0,
+                    'title' => ''
+                ]
+            ]);
+
+        });
+
     });
 
     describe("::parse()", function() {
