@@ -325,9 +325,10 @@ class Payload
             return;
         }
         $child = $entity->{$name};
-        if ($link = $this->_link) {
-            $data['relationships'][$name]['links']['related'] = $this->_relatedLink($entity::definition()->relation($name)->counterpart()->name(), $entity->id(), $child);
-        }
+        // Remove the `related` support for now, useless and Having issue with Single Table Inheritance.
+        // if ($link = $this->_link) {
+        //     $data['relationships'][$name]['links']['related'] = $this->_relatedLink($entity::definition()->relation($name)->counterpart()->name(), $entity->id(), $child);
+        // }
         if ($child instanceof Model) {
             if ($child->exists()) {
                 $data['relationships'][$name]['data'] = $this->_push($child, true);
