@@ -253,7 +253,7 @@ class Payload
         $data = $this->_data($entity);
 
         if (($link = $this->_link) && $entity->exists()) {
-            $data['links']['self'] = $link(Inflector::camelize($data['type']), ['id' => $entity->id()], ['absolute' => true]);
+            $data['links']['self'] = $link($data['type'], ['id' => $entity->id()], ['absolute' => true]);
         }
 
         if ($related) {
@@ -394,11 +394,7 @@ class Payload
     {
         $definition = $entity::definition();
         $key = $entity::definition()->key();
-
-        $class = $entity->self();
-        $pos = strrpos($class, '\\');
-        $basename = substr($class, $pos !== false ? $pos + 1 : 0);
-        $result = ['type' => $basename];
+        $result = ['type' => Inflector::camelize($definition->source())];
 
         if ($entity->exists()) {
             $result['id'] = $entity->id();
