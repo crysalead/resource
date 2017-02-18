@@ -1,6 +1,7 @@
 <?php
 namespace Lead\Resource\Chaos\JsonApi;
 
+use Exception;
 use Lead\Inflector\Inflector;
 use Lead\Net\Http\Media;
 use Lead\Resource\ResourceException;
@@ -224,12 +225,28 @@ class Payload
         $this->_data[] = $data;
         $this->_storeValidationError($entity);
 
-        if ($entity->exists()) {
+        if ($this->_exists($entity)) {
             end($this->_data);
             $this->_indexed[$entity->id()] = key($this->_data);
             reset($this->_data);
         }
         return $this;
+    }
+
+    /**
+     * Wrap the model exists method.
+     * Assume a `false` existance when the exists value can't be determined.
+     *
+     * @param  object  $entity The Chaos entity to check.
+     * @return boolean
+     */
+    public function _exists($entity)
+    {
+        try {
+            return $entity->exists();
+        } catch(Exception $e) {
+            return false;
+        }
     }
 
     /**
@@ -252,7 +269,7 @@ class Payload
         $definition = $entity::definition();
         $data = $this->_data($entity);
 
-        if (($link = $this->_link) && $entity->exists()) {
+        if (($link = $this->_link) && $this->_exists($entity)) {
             $data['links']['self'] = $link($data['type'], ['id' => $entity->id()], ['absolute' => true]);
         }
 
@@ -330,7 +347,7 @@ class Payload
         //     $data['relationships'][$name]['links']['related'] = $this->_relatedLink($entity::definition()->relation($name)->counterpart()->name(), $entity->id(), $child);
         // }
         if ($child instanceof Model) {
-            if ($child->exists()) {
+            if ($this->_exists($child)) {
                 $data['relationships'][$name]['data'] = $this->_push($child, true);
             } else {
                 $data['attributes'][$name] = $child->to('array', ['embed' => false]);
@@ -340,7 +357,7 @@ class Payload
                 $through[] = $entity::definition()->relation($name);
             }
             foreach ($child as $item) {
-                if ($item->exists()) {
+                if ($this->_exists($item)) {
                     $data['relationships'][$name]['data'][] = $this->_push($item, true);
                 } else {
                     $data['attributes'][$name][] = $item->to('array', ['embed' => false]);
