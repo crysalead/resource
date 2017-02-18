@@ -45,12 +45,10 @@ trait JsonApiHandlers
     {
         $handlers = [
             'Chaos\ORM\Collection' => function($resource) {
-                $exists = $resource->invoke('exists');
-                $validates = $resource->invoke('validates');
-                return ['exists' => $resource->exists(), 'valid' => $resource->validates()];
+                return ['exists' => true, 'valid' => true];
             },
             'Chaos\ORM\Model' => function($resource) {
-                return ['exists' => $resource->exists(), 'valid' => $resource->validates()];
+                return ['exists' => $resource->exists(), 'valid' => !$resource->errors()];
             }
         ];
         if ($resource) {
