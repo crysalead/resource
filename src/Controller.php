@@ -316,15 +316,24 @@ class Controller
         $success = call_user_func_array([$this, $action], $args);
         $transitions[] = $this->state($resource, $success === true ? compact('success') : []);
 
-        if (!is_bool($success)) {
-            $method = $this->request->method();
-            if ($method !== 'GET') {
+        $method = $this->request->method();
+        if ($method !== 'GET') {
+            if (!is_bool($success)) {
                 throw new ResourceException("{$method} queries must return a boolean value.");
             }
-            $resource = $success;
+        } else {
+            $resource = $success !== null ? $success : $resource;
         }
 
         $resource = is_object($resource) ? $this->_fetch($resource) : $resource;
+
+        $params = $this->request->params();
+        if (isset($params['id'])) {
+            if (!$resource = $resource->rewind()) {
+                $params = $this->request->params();
+                throw new ResourceException("Resource `{$this->name()}` has no `{$this->_key}` with value `{$params['id']}`.", 404);
+            }
+        }
 
         $this->_data[$name][] = $resource;
 

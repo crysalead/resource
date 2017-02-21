@@ -108,17 +108,8 @@ trait JsonApiHandlers
         $params = $request->params();
         $model = $options['binding'];
         $conditions = $this->_keys($model, $request);
-        $query = $this->_query($request);
-        $query = $model::find(compact('conditions') + $query);
-
-        if (isset($params['id'])) {
-            if (!$resource = $query->first()) {
-                throw new ResourceException("Resource `{$this->name()}` has no `{$this->_key}` with value `{$params['id']}`.", 404);
-            }
-        } else {
-            $resource = $query;
-        }
-        return [[ $resource ]];
+        $query = $model::find(compact('conditions') + $this->_paging($request));
+        return [[ $query, $this->_query($request) ]];
     }
 
     /**
@@ -231,12 +222,31 @@ trait JsonApiHandlers
      */
     protected function _query($request)
     {
-        $query = [];
+        $query = ['filter' => [], 'include' => []];
         $q = $request->query();
 
         if (isset($q['include'])) {
-            $query['embed'] = explode(',', $q['include']);
+            $query['include'] = array_map('trim', explode(',', $q['include']));
         }
+        if (isset($q['filter']) && is_array($q['filter'])) {
+            foreach ($q['filter'] as $key => $value) {
+                $query['filter'][$key] = strpos($value, ',') !== false ? array_map('trim', explode(',', $value)) : $value;
+            }
+        }
+        return $query;
+    }
+
+    /**
+     * Builds the paging array from JSON-API query string.
+     *
+     * @param  array  $request The request.
+     * @return array           The query array.
+     */
+    protected function _paging($request)
+    {
+        $paging = [];
+        $q = $request->query();
+
         if (isset($q['sort'])) {
             $orders = [];
             foreach (explode(',', $q['sort']) as $field) {
@@ -246,17 +256,12 @@ trait JsonApiHandlers
                     $orders[$field] = 'ASC';
                 }
             }
-            $query['order'] = $orders;
+            $paging['order'] = $orders;
         }
         if (isset($q['page'])) {
-            $query = $query + array_intersect_key($q['page'], array_fill_keys(['limit', 'offset', 'page'], true));
+            $paging = $paging + array_intersect_key($q['page'], array_fill_keys(['limit', 'offset', 'page'], true));
         }
-        if (isset($q['filter']) && is_array($q['filter'])) {
-            foreach ($q['filter'] as $key => $value) {
-                $query['filter'][$key] = strpos($value, ',') !== false ? explode(',', $value) : $value;
-            }
-        }
-        return $query;
+        return $paging;
     }
 
     /**
