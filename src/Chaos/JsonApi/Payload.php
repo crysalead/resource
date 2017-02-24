@@ -276,9 +276,8 @@ class Payload
         if ($related) {
             $this->_store($data);
             unset($data['attributes']);
+            unset($data['relationships']);
             unset($data['links']);
-        } elseif ($relations = $definition->relations()) {
-            $this->_populateRelationships($entity, $relations, $data);
         }
 
         return $data;
@@ -315,16 +314,8 @@ class Payload
         if (isset($data['relationships'])) {
             $data['relationships'] = array_filter($data['relationships']);
         }
-        if (isset($data['attributes'])) {
-            foreach ($data['attributes'] as $key => $value) {
-                if ($value === null) {
-                    unset($data['attributes'][$key]);
-                }
-            }
-        }
         foreach($through as $rel) {
             unset($data['attributes'][$rel->through()]);
-            unset($data['relationships'][$rel->through()]);
         }
     }
 
@@ -338,10 +329,13 @@ class Payload
      */
     protected function _populateRelationship($entity, $name, &$data, &$through)
     {
-        if (!isset($entity->{$name})) {
+        if (!$entity->has($name)) {
             return;
         }
-        $child = $entity->{$name};
+        if (!$child = $entity->{$name}) {
+            return;
+        }
+
         // Remove the `related` support for now, useless and Having issue with Single Table Inheritance.
         // if ($link = $this->_link) {
         //     $data['relationships'][$name]['links']['related'] = $this->_relatedLink($entity::definition()->relation($name)->counterpart()->name(), $entity->id(), $child);
@@ -353,21 +347,21 @@ class Payload
                 $data['attributes'][$name] = $child->to('array', ['embed' => false]);
             }
         } else {
-            if ($child instanceof Through) {
+            $isThrough = $child instanceof Through;
+            if ($isThrough) {
                 $through[] = $entity::definition()->relation($name);
             }
             foreach ($child as $item) {
                 if ($this->_exists($item)) {
-                    $data['relationships'][$name]['data'][] = $this->_push($item, true);
+                    if (!$isThrough) {
+                        $data['relationships'][$name]['data'][] = $this->_push($item, true);
+                    }
                 } else {
                     $data['attributes'][$name][] = $item->to('array', ['embed' => false]);
                 }
             }
             if (isset($data['relationships'][$name]['data'])) {
                 $data['relationships'][$name]['data'] = array_filter($data['relationships'][$name]['data']);
-            }
-            if (isset($data['attributes'][$name])) {
-                $data['attributes'][$name] = array_filter($data['attributes'][$name]);
             }
         }
     }
@@ -430,6 +424,10 @@ class Payload
         unset($attrs[$key]);
 
         $result['attributes'] = $attrs;
+
+        if ($relations = $definition->relations()) {
+            $this->_populateRelationships($entity, $relations, $result);
+        }
 
         return $result;
     }

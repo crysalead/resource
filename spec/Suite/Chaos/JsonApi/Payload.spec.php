@@ -168,10 +168,11 @@ describe("Payload", function() use ($connection) {
 
             $payload = new Payload();
             $payload->set($image);
-            expect($payload->data())->toBe([
+            expect($payload->data())->toEqual([
                 'type' => 'Image',
                 'attributes' => [
                     'title' => 'Amiga 1200',
+                    'gallery_id' => null,
                     'gallery' => [
                         'name' => 'Gallery 1'
                     ],
@@ -215,15 +216,15 @@ describe("Payload", function() use ($connection) {
                             'id' => 1
                         ]
                     ],
-                    'tags' => [
+                    'images_tags' => [
                         'data' => [
                             [
-                                'type' => 'Tag',
+                                'type' => 'ImageTag',
                                 'id' => 1
                             ],
                             [
-                                'type' => 'Tag',
-                                'id' => 3
+                                'type' => 'ImageTag',
+                                'id' => 2
                             ]
                         ]
                     ]
@@ -239,11 +240,33 @@ describe("Payload", function() use ($connection) {
                     ]
                 ],
                 [
+                    'type' => 'Tag',
+                    'id' => 1,
+                    'attributes' => [
+                        'name' => 'High Tech'
+                    ]
+                ],
+                [
                     'type' => 'ImageTag',
                     'id' => 1,
                     'attributes' => [
                         'image_id' => 1,
                         'tag_id' => 1
+                    ],
+                    'relationships' => [
+                        'tag' => [
+                            'data' => [
+                                'type' => 'Tag',
+                                'id' => 1
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    'type' => 'Tag',
+                    'id' => 3,
+                    'attributes' => [
+                        'name' => 'Computer'
                     ]
                 ],
                 [
@@ -252,20 +275,14 @@ describe("Payload", function() use ($connection) {
                     'attributes' => [
                         'image_id' => 1,
                         'tag_id' => 3
-                    ]
-                ],
-                [
-                    'type' => 'Tag',
-                    'id' => 1,
-                    'attributes' => [
-                        'name' => 'High Tech'
-                    ]
-                ],
-                [
-                    'type' => 'Tag',
-                    'id' => 3,
-                    'attributes' => [
-                        'name' => 'Computer'
+                    ],
+                    'relationships' => [
+                        'tag' => [
+                            'data' => [
+                                'type' => 'Tag',
+                                'id' => 3
+                            ]
+                        ]
                     ]
                 ]
             ]);
@@ -321,7 +338,7 @@ describe("Payload", function() use ($connection) {
             expect($payload->serialize())->toEqual(json_decode($json, true));
         });
 
-        it("filters out only `null` values", function() {
+        it("doesn't filter out `null` values", function() {
 
             $image = Image::create([
                 'id' => 1,
@@ -338,6 +355,7 @@ describe("Payload", function() use ($connection) {
                 'id' => 1,
                 'attributes' => [
                     'gallery_id' => 0,
+                    'name' => null,
                     'title' => ''
                 ]
             ]);
