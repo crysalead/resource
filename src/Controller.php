@@ -242,6 +242,7 @@ class Controller
                     throw new ResourceException("Bluk actions are not available through GET queries.");
                 }
             } catch (Throwable $e) {
+                $success = false;
                 $errors[] = $e;
             }
         }

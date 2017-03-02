@@ -129,7 +129,7 @@ trait JsonApiHandlers
         }
         $list = [];
         foreach ($collection as $data) {
-            $list[] = [$options['binding']::create($data), $payload];
+            $list[] = [$options['binding']::create(), $data, $payload];
         }
         return $list;
     }
