@@ -88,11 +88,11 @@ describe("Payload", function() use ($connection) {
             $payload->delete($images);
             expect($payload->serialize())->toEqual([
                 'data' => [
-                    ['type' => 'Image', 'id' => 1],
-                    ['type' => 'Image', 'id' => 2],
-                    ['type' => 'Image', 'id' => 3],
-                    ['type' => 'Image', 'id' => 4],
-                    ['type' => 'Image', 'id' => 5]
+                    ['type' => 'Image', 'id' => 1, 'exists' => true],
+                    ['type' => 'Image', 'id' => 2, 'exists' => true],
+                    ['type' => 'Image', 'id' => 3, 'exists' => true],
+                    ['type' => 'Image', 'id' => 4, 'exists' => true],
+                    ['type' => 'Image', 'id' => 5, 'exists' => true]
                 ]
             ]);
 
@@ -143,6 +143,64 @@ describe("Payload", function() use ($connection) {
             ]);
         });
 
+        it("export unexisting & existing entities", function() {
+
+            $image = Image::create([
+                'title' => 'Amiga 1200'
+            ]);
+            $image->tags[] = Tag::create(['id' => 1, 'name' => 'Computer'], ['exists' => true]);
+            $image->tags[] = Tag::create(['id' => 2, 'name' => 'Science'], ['exists' => true]);
+            $image->gallery = ['name' => 'Gallery 1'];
+
+            $payload = new Payload();
+            $payload->set($image);
+
+            $collection = $payload->export(null, Image::class);
+            $item = $collection[0];
+
+            expect($item->data())->toEqual([
+                'gallery_id' => null,
+                'title' => 'Amiga 1200',
+                'gallery' => [
+                    'name' => 'Gallery 1'
+                ],
+                'images_tags' => [
+                    [
+                        'tag_id' => 1,
+                        'tag' => [
+                            'id' => 1,
+                            'name' => 'Computer'
+                        ]
+                    ],
+                    [
+                        'tag_id' => 2,
+                        'tag' => [
+                            'id' => 2,
+                            'name' => 'Science'
+                        ]
+                    ]
+                ],
+                'tags' => [
+                    [
+                        'id' => 1,
+                        'name' => 'Computer'
+                    ],
+                    [
+                        'id' => 2,
+                        'name' => 'Science'
+                    ]
+                ]
+            ]);
+
+            expect($item->exists())->toBe(false);
+            expect($item->gallery->exists())->toBe(false);
+            expect($item->images_tags[0]->exists())->toBe(false);
+            expect($item->images_tags[1]->exists())->toBe(false);
+            expect($item->tags[0]->exists())->toBe(true);
+            expect($item->tags[1]->exists())->toBe(true);
+
+        });
+
     });
 
     describe("->serialize()", function() {
@@ -169,21 +227,154 @@ describe("Payload", function() use ($connection) {
             $payload = new Payload();
             $payload->set($image);
             expect($payload->data())->toEqual([
-                'type' => 'Image',
+                'type'   => 'Image',
+                'exists' => false,
                 'attributes' => [
                     'title' => 'Amiga 1200',
-                    'gallery_id' => null,
+                    'gallery_id' => null
+                ],
+                'relationships' => [
                     'gallery' => [
-                        'name' => 'Gallery 1'
+                        'data' => [
+                            'type' => 'Gallery',
+                            'exists' => false,
+                            'attributes' => [
+                                'name' => 'Gallery 1'
+                            ]
+                        ]
                     ],
-                    'tags' => [
-                        ['name' => 'Computer'],
-                        ['name' => 'Science']
+                    'images_tags' => [
+                        'data' => [
+                            [
+                                'type' => 'ImageTag',
+                                'exists' => false,
+                                'attributes' => [
+                                    'tag_id' => null
+                                ],
+                                'relationships' => [
+                                    'tag' => [
+                                        'data' => [
+                                            'type' => 'Tag',
+                                            'exists' => false,
+                                            'attributes' => [
+                                                'name' =>'Computer'
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            [
+                                'type' => 'ImageTag',
+                                'exists' => false,
+                                'attributes' => [
+                                    'tag_id' => null
+                                ],
+                                'relationships' => [
+                                    'tag' => [
+                                        'data' => [
+                                            'type' => 'Tag',
+                                            'exists' => false,
+                                            'attributes' => [
+                                                'name' =>'Science'
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
                     ]
                 ]
             ]);
 
             expect($payload->included())->toBe([]);
+
+        });
+
+        it("serializes unexisting & existing entities", function() {
+
+            $image = Image::create([
+                'title' => 'Amiga 1200'
+            ]);
+            $image->tags[] = Tag::create(['id' => 1, 'name' => 'Computer'], ['exists' => true]);
+            $image->tags[] = Tag::create(['id' => 2, 'name' => 'Science'], ['exists' => true]);
+            $image->gallery = ['name' => 'Gallery 1'];
+
+            $payload = new Payload();
+            $payload->set($image);
+            expect($payload->data())->toEqual([
+                'type'   => 'Image',
+                'exists' => false,
+                'attributes' => [
+                    'title' => 'Amiga 1200',
+                    'gallery_id' => null
+                ],
+                'relationships' => [
+                    'gallery' => [
+                        'data' => [
+                            'type' => 'Gallery',
+                            'exists' => false,
+                            'attributes' => [
+                                'name' => 'Gallery 1'
+                            ]
+                        ]
+                    ],
+                    'images_tags' => [
+                        'data' => [
+                            [
+                                'type' => 'ImageTag',
+                                'exists' => false,
+                                'attributes' => [
+                                    'tag_id' => 1
+                                ],
+                                'relationships' => [
+                                    'tag' => [
+                                        'data' => [
+                                            'type' => 'Tag',
+                                            'id' => 1,
+                                            'exists' => true
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            [
+                                'type' => 'ImageTag',
+                                'exists' => false,
+                                'attributes' => [
+                                    'tag_id' => 2
+                                ],
+                                'relationships' => [
+                                    'tag' => [
+                                        'data' => [
+                                            'type' => 'Tag',
+                                            'id' => 2,
+                                            'exists' => true
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]);
+
+            expect($payload->included())->toBe([
+                [
+                    'type' => 'Tag',
+                    'id' => 1,
+                    'exists' => true,
+                    'attributes' => [
+                        'name' => 'Computer'
+                    ]
+                ],
+                [
+                    'type' => 'Tag',
+                    'id' => 2,
+                    'exists' => true,
+                    'attributes' => [
+                        'name' => 'Science'
+                    ]
+                ]
+            ]);
 
         });
 
@@ -204,6 +395,7 @@ describe("Payload", function() use ($connection) {
             expect($payload->data())->toBe([
                 'type' => 'Image',
                 'id' => 1,
+                'exists' => true,
                 'attributes' => [
                     'gallery_id' => 1,
                     'name' => 'amiga_1200.jpg',
@@ -213,18 +405,21 @@ describe("Payload", function() use ($connection) {
                     'gallery' => [
                         'data' => [
                             'type' => 'Gallery',
-                            'id' => 1
+                            'id' => 1,
+                            'exists' => true
                         ]
                     ],
                     'images_tags' => [
                         'data' => [
                             [
                                 'type' => 'ImageTag',
-                                'id' => 1
+                                'id' => 1,
+                                'exists' => true
                             ],
                             [
                                 'type' => 'ImageTag',
-                                'id' => 2
+                                'id' => 2,
+                                'exists' => true
                             ]
                         ]
                     ]
@@ -235,6 +430,7 @@ describe("Payload", function() use ($connection) {
                 [
                     'type' => 'Gallery',
                     'id' => 1,
+                    'exists' => true,
                     'attributes' => [
                         'name' => 'Foo Gallery'
                     ]
@@ -242,6 +438,7 @@ describe("Payload", function() use ($connection) {
                 [
                     'type' => 'Tag',
                     'id' => 1,
+                    'exists' => true,
                     'attributes' => [
                         'name' => 'High Tech'
                     ]
@@ -249,6 +446,7 @@ describe("Payload", function() use ($connection) {
                 [
                     'type' => 'ImageTag',
                     'id' => 1,
+                    'exists' => true,
                     'attributes' => [
                         'image_id' => 1,
                         'tag_id' => 1
@@ -257,7 +455,8 @@ describe("Payload", function() use ($connection) {
                         'tag' => [
                             'data' => [
                                 'type' => 'Tag',
-                                'id' => 1
+                                'id' => 1,
+                                'exists' => true
                             ]
                         ]
                     ]
@@ -265,6 +464,7 @@ describe("Payload", function() use ($connection) {
                 [
                     'type' => 'Tag',
                     'id' => 3,
+                    'exists' => true,
                     'attributes' => [
                         'name' => 'Computer'
                     ]
@@ -272,6 +472,7 @@ describe("Payload", function() use ($connection) {
                 [
                     'type' => 'ImageTag',
                     'id' => 2,
+                    'exists' => true,
                     'attributes' => [
                         'image_id' => 1,
                         'tag_id' => 3
@@ -280,7 +481,8 @@ describe("Payload", function() use ($connection) {
                         'tag' => [
                             'data' => [
                                 'type' => 'Tag',
-                                'id' => 3
+                                'id' => 3,
+                                'exists' => true
                             ]
                         ]
                     ]
@@ -304,6 +506,7 @@ describe("Payload", function() use ($connection) {
                 [
                     'type' => 'Image',
                     'id' => 1,
+                    'exists' => true,
                     'attributes' => [
                         'gallery_id' => 1,
                         'name' => 'amiga_1200.jpg',
@@ -313,6 +516,7 @@ describe("Payload", function() use ($connection) {
                 [
                     'type' => 'Image',
                     'id' => 2,
+                    'exists' => true,
                     'attributes' => [
                         'gallery_id' => 1,
                         'name' => 'srinivasa_ramanujan.jpg',
@@ -353,6 +557,7 @@ describe("Payload", function() use ($connection) {
             expect($payload->data())->toBe([
                 'type' => 'Image',
                 'id' => 1,
+                'exists' => true,
                 'attributes' => [
                     'gallery_id' => 0,
                     'name' => null,

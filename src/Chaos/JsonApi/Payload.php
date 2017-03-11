@@ -111,9 +111,9 @@ class Payload
     protected $_link = null;
 
     /**
-     * Data exporter handler.
+     * Data importer handler.
      */
-    protected $_exporter = null;
+    protected $_importer = null;
 
     /**
      * Constructor.
@@ -127,8 +127,14 @@ class Payload
             'keys'   => [],
             'data'   => [],
             'link'   => null,
-            'exporter' => function($entity) {
+            'importer' => function($entity) {
                 return $entity->to('array', ['embed' => false]);
+            },
+            'exporter' => function($model, $data, $options) {
+                if (!$model) {
+                    return $data;
+                }
+                return $model::create($data, $options);
             }
         ];
 
@@ -146,6 +152,7 @@ class Payload
         $this->_key = $config['key'];
         $this->_keys = $config['keys'];
         $this->_link = $config['link'];
+        $this->_importer = $config['importer'];
         $this->_exporter = $config['exporter'];
 
         $this->jsonapi($config['data']['jsonapi']);
@@ -341,23 +348,15 @@ class Payload
         //     $data['relationships'][$name]['links']['related'] = $this->_relatedLink($entity::definition()->relation($name)->counterpart()->name(), $entity->id(), $child);
         // }
         if ($child instanceof Model) {
-            if ($this->_exists($child)) {
-                $data['relationships'][$name]['data'] = $this->_push($child, true);
-            } else {
-                $data['attributes'][$name] = $child->to('array', ['embed' => false]);
-            }
+            $data['relationships'][$name]['data'] = $this->_push($child, $this->_exists($child));
         } else {
             $isThrough = $child instanceof Through;
             if ($isThrough) {
                 $through[] = $entity::definition()->relation($name);
             }
             foreach ($child as $item) {
-                if ($this->_exists($item)) {
-                    if (!$isThrough) {
-                        $data['relationships'][$name]['data'][] = $this->_push($item, true);
-                    }
-                } else {
-                    $data['attributes'][$name][] = $item->to('array', ['embed' => false]);
+                if (!$isThrough) {
+                    $data['relationships'][$name]['data'][] = $this->_push($item, $this->_exists($item));
                 }
             }
             if (isset($data['relationships'][$name]['data'])) {
@@ -407,8 +406,12 @@ class Payload
         $key = $entity::definition()->key();
         $result = ['type' => Inflector::camelize($definition->source())];
 
-        if ($entity->exists()) {
-            $result['id'] = $entity->id();
+        $id = $entity->id();
+        if ($id !== null) {
+            $result['id'] = $id;
+            $result['exists'] = $entity->exists();
+        } else {
+            $result['exists'] = false;
         }
 
         if (!$attributes) {
@@ -416,8 +419,8 @@ class Payload
         }
 
         $attrs = [];
-        $exporter = $this->_exporter;
-        $data = $exporter($entity);
+        $importer = $this->_importer;
+        $data = $importer($entity);
         foreach ($data as $name => $value) {
             $attrs[$name] = $value;
         }
@@ -464,9 +467,9 @@ class Payload
     /**
      * Exports a JSON-API item data into a nested from array.
      */
-    public function export($id = null)
+    public function export($id = null, $model = null)
     {
-        if (!func_num_args()) {
+        if ($id === null) {
             $collection = $this->data();
             $collection = count($this->_data) === 1 ? [$collection] : $collection;
         } else {
@@ -476,6 +479,7 @@ class Payload
             $collection = [$this->_data[$this->_indexed[$id]]];
         }
         $export = [];
+        $options = [];
         foreach ($collection as $data) {
             $type = isset($data['type']) ? $data['type'] : null;
             $key = isset($this->_keys[$type]) ? $this->_keys[$type] : $this->_key;
@@ -487,46 +491,62 @@ class Payload
                 $result = [];
                 $indexes = [];
             }
+            $options['exists'] = !empty($data['exists']);
 
             if (isset($data['attributes'])) {
                 $result += $data['attributes'];
             }
+            $exporter = $this->_exporter;
+            $result = $exporter($model, $result, $options);
+
+            $schema = $model ? $model::definition() : null;
+
             if (isset($data['relationships'])) {
                 foreach ($data['relationships'] as $key => $value) {
-                    $result[$key] = $this->_relationship($value['data'], $indexes);
+                    $to = $schema ? $schema->relation($key)->to() : null;
+                    $result[$key] = $this->_relationship($value['data'], $indexes, $to);
                 }
             }
             $export[] = $result;
         }
-        return func_num_args() ? reset($export) : $export;
+        return $id === null ? $export : reset($export);
     }
 
     /**
      * Helper for `Payload::export()`.
      */
-    protected function _relationship($collection, &$indexes)
+    protected function _relationship($collection, &$indexes, $model)
     {
         $isCollection = !$collection || isset($collection[0]);
         $collection = $isCollection ? $collection : [$collection];
         $export = [];
-
+        $options = [];
+        $exporter = $this->_exporter;
+        $schema = $model ? $model::definition() : null;
         foreach ($collection as $data) {
-            if (isset($indexes[$data['type']][$data['id']])) {
-                continue;
+            $options['exists'] = !empty($data['exists']);
+            if (isset($data['id'])) {
+                if (isset($indexes[$data['type']][$data['id']])) {
+                    continue;
+                }
+                $indexes[$data['type']][$data['id']] = true;
+                if (!isset($this->_store[$data['type']][$data['id']])) {
+                    continue;
+                }
+                $result = $this->_store[$data['type']][$data['id']];
+                $relationships = isset($this->_relationships[$data['type']][$data['id']]) ? $this->_relationships[$data['type']][$data['id']] : [];
+            } else {
+                $result = isset($data['attributes']) ? $data['attributes'] : [];
+                $relationships = isset($data['relationships']) ? $data['relationships'] : [];
             }
-            $indexes[$data['type']][$data['id']] = true;
-            if (!isset($this->_store[$data['type']][$data['id']])) {
-                continue;
-            }
-            $result = $this->_store[$data['type']][$data['id']];
-            if (isset($this->_relationships[$data['type']][$data['id']])) {
-                foreach ($this->_relationships[$data['type']][$data['id']] as $key => $value) {
-                    if ($item = $this->_relationship($value['data'], $indexes)) {
-                        $result[$key] = $item;
-                    }
+
+            foreach ($relationships as $key => $value) {
+                $to = $schema ? $schema->relation($key)->to() : null;
+                if ($item = $this->_relationship($value['data'], $indexes, $to)) {
+                    $result[$key] = $item;
                 }
             }
-            $export[] = $result;
+            $export[] = $exporter($model, $result, $options);
         }
         return $isCollection ? $export : reset($export);
     }

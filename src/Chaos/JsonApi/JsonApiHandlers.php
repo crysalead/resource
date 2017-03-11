@@ -89,7 +89,7 @@ trait JsonApiHandlers
             throw new ResourceException("No `{$this->name()}` resource(s) found with value `[{$keys}]`, nothing to process.", 404);
         }
         foreach ($collection as $entity) {
-            $list[] = [$entity, $payload->export((string) $entity->id()), $payload];
+            $list[] = [$entity, $payload->export((string) $entity->id(), $model), $payload];
         }
         return $list;
     }
@@ -124,7 +124,7 @@ trait JsonApiHandlers
     protected function _post($request, $options)
     {
         $payload = Payload::parse($request->body());
-        if (!$collection = $payload->export()) {
+        if (!$collection = $payload->export(null, $options['binding'])) {
             throw new ResourceException("No data provided for `{$this->name()}` resource(s), nothing to process.", 422);
         }
         $list = [];
