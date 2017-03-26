@@ -354,8 +354,9 @@ class Payload
             if ($isThrough) {
                 $through[] = $entity::definition()->relation($name);
             }
-            foreach ($child as $item) {
-                if (!$isThrough) {
+            if (!$isThrough) {
+                $data['relationships'][$name]['data'] = [];
+                foreach ($child as $item) {
                     $data['relationships'][$name]['data'][] = $this->_push($item, $this->_exists($item));
                 }
             }
