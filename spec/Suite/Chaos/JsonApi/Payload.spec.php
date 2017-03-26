@@ -27,6 +27,8 @@ describe("Payload", function() use ($connection) {
             ]
         ]);
 
+        $this->payload = new Payload();
+
     });
 
     afterEach(function() {
@@ -38,10 +40,9 @@ describe("Payload", function() use ($connection) {
 
         it("sets an error with trying to add a non Chaos entity", function() {
 
-            $payload = new Payload();
-            $payload->set(['hello' => 'world']);
+            $this->payload->set(['hello' => 'world']);
 
-            expect($payload->errors())->toBe([[
+            expect($this->payload->errors())->toBe([[
                 'status' => 500,
                 'code'   => 500,
                 'title'  => "The JSON-API serializer only supports Chaos entities."
@@ -57,10 +58,9 @@ describe("Payload", function() use ($connection) {
             $gallery = Gallery::create();
             $gallery->validates();
 
-            $payload = new Payload();
-            $payload->set($gallery);
+            $this->payload->set($gallery);
 
-            expect($payload->errors())->toBe([[
+            expect($this->payload->errors())->toBe([[
                 'status' => 422,
                 'code'   => 0,
                 'title'  => "Validation Error",
@@ -83,10 +83,9 @@ describe("Payload", function() use ($connection) {
 
             $this->fixtures->populate('image');
 
-            $payload = new Payload();
             $images = Image::all();
-            $payload->delete($images);
-            expect($payload->serialize())->toEqual([
+            $this->payload->delete($images);
+            expect($this->payload->serialize())->toEqual([
                 'data' => [
                     ['type' => 'Image', 'id' => 1, 'exists' => true],
                     ['type' => 'Image', 'id' => 2, 'exists' => true],
@@ -152,10 +151,9 @@ describe("Payload", function() use ($connection) {
             $image->tags[] = Tag::create(['id' => 2, 'name' => 'Science'], ['exists' => true]);
             $image->gallery = ['name' => 'Gallery 1'];
 
-            $payload = new Payload();
-            $payload->set($image);
+            $this->payload->set($image);
 
-            $collection = $payload->export(null, Image::class);
+            $collection = $this->payload->export(null, Image::class);
             $item = $collection[0];
 
             expect($item->data())->toEqual([
@@ -207,9 +205,7 @@ describe("Payload", function() use ($connection) {
 
         it("serializes an empty payload", function() {
 
-            $payload = new Payload();
-
-            expect($payload->serialize())->toEqual([
+            expect($this->payload->serialize())->toEqual([
                 'data' => []
             ]);
 
@@ -224,9 +220,8 @@ describe("Payload", function() use ($connection) {
             $image->tags[] = ['name' => 'Science'];
             $image->gallery = ['name' => 'Gallery 1'];
 
-            $payload = new Payload();
-            $payload->set($image);
-            expect($payload->data())->toEqual([
+            $this->payload->set($image);
+            expect($this->payload->data())->toEqual([
                 'type'   => 'Image',
                 'exists' => false,
                 'attributes' => [
@@ -286,7 +281,7 @@ describe("Payload", function() use ($connection) {
                 ]
             ]);
 
-            expect($payload->included())->toBe([]);
+            expect($this->payload->included())->toBe([]);
 
         });
 
@@ -299,9 +294,8 @@ describe("Payload", function() use ($connection) {
             $image->tags[] = Tag::create(['id' => 2, 'name' => 'Science'], ['exists' => true]);
             $image->gallery = ['name' => 'Gallery 1'];
 
-            $payload = new Payload();
-            $payload->set($image);
-            expect($payload->data())->toEqual([
+            $this->payload->set($image);
+            expect($this->payload->data())->toEqual([
                 'type'   => 'Image',
                 'exists' => false,
                 'attributes' => [
@@ -357,7 +351,7 @@ describe("Payload", function() use ($connection) {
                 ]
             ]);
 
-            expect($payload->included())->toBe([
+            expect($this->payload->included())->toBe([
                 [
                     'type' => 'Tag',
                     'id' => 1,
@@ -387,12 +381,11 @@ describe("Payload", function() use ($connection) {
 
             $image = Image::load(1, ['embed' => ['gallery', 'tags']]);
 
-            $payload = new Payload();
-            $payload->set($image);
+            $this->payload->set($image);
 
-            expect($payload->isCollection())->toBe(false);
+            expect($this->payload->isCollection())->toBe(false);
 
-            expect($payload->data())->toBe([
+            expect($this->payload->data())->toBe([
                 'type' => 'Image',
                 'id' => 1,
                 'exists' => true,
@@ -426,7 +419,7 @@ describe("Payload", function() use ($connection) {
                 ]
             ]);
 
-            expect($payload->included())->toBe([
+            expect($this->payload->included())->toBe([
                 [
                     'type' => 'Gallery',
                     'id' => 1,
@@ -497,12 +490,11 @@ describe("Payload", function() use ($connection) {
 
             $images = Image::find()->where(['id' => [1 , 2]])->all();
             $images->meta(['count' => 10]);
-            $payload = new Payload();
-            $payload->set($images);
+            $this->payload->set($images);
 
-            expect($payload->isCollection())->toBe(true);
+            expect($this->payload->isCollection())->toBe(true);
 
-            expect($payload->data())->toBe([
+            expect($this->payload->data())->toBe([
                 [
                     'type' => 'Image',
                     'id' => 1,
@@ -525,9 +517,9 @@ describe("Payload", function() use ($connection) {
                 ]
             ]);
 
-            expect($payload->included())->toBe([]);
+            expect($this->payload->included())->toBe([]);
 
-            expect($payload->meta())->toBe(['count' => 10]);
+            expect($this->payload->meta())->toBe(['count' => 10]);
 
         });
 
@@ -551,10 +543,9 @@ describe("Payload", function() use ($connection) {
                 'title' => ''
             ], ['exists' => true]);
 
-            $payload = new Payload();
-            $payload->set($image);
+            $this->payload->set($image);
 
-            expect($payload->data())->toBe([
+            expect($this->payload->data())->toBe([
                 'type' => 'Image',
                 'id' => 1,
                 'exists' => true,

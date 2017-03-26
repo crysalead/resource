@@ -128,7 +128,7 @@ class Payload
             'data'   => [],
             'link'   => null,
             'importer' => function($entity) {
-                return $entity->to('array', ['embed' => false]);
+                return $entity->to('json', ['embed' => false]);
             },
             'exporter' => function($model, $data, $options) {
                 if (!$model) {
