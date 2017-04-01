@@ -234,7 +234,7 @@ class Payload
 
         if ($this->_exists($entity)) {
             end($this->_data);
-            $this->_indexed[$entity->id()] = key($this->_data);
+            $this->_indexed[(string) $entity->id()] = key($this->_data);
             reset($this->_data);
         }
         return $this;
@@ -407,7 +407,10 @@ class Payload
         $key = $entity::definition()->key();
         $result = ['type' => Inflector::camelize($definition->source())];
 
-        $id = $entity->id();
+        $importer = $this->_importer;
+        $attrs = $importer($entity);
+
+        $id = isset($attrs[$key]) ? $attrs[$key] : null;
         if ($id !== null) {
             $result['id'] = $id;
             $result['exists'] = $entity->exists();
@@ -419,12 +422,6 @@ class Payload
             return $result;
         }
 
-        $attrs = [];
-        $importer = $this->_importer;
-        $data = $importer($entity);
-        foreach ($data as $name => $value) {
-            $attrs[$name] = $value;
-        }
         unset($attrs[$key]);
 
         $result['attributes'] = $attrs;
