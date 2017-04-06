@@ -431,9 +431,18 @@ class Controller
 
         $handlers = $this->handlers('actions');
 
-        $handler = isset($handlers[$action]) ? $handlers[$action] : (isset($handlers[0]) ? $handlers[0] : null);
+        if (isset($handlers[$action])) {
+            $handler = $handlers[$action];
+        } elseif (!in_array($action, ['index', 'view', 'add', 'edit', 'delete'])) {
+            $handler = null;
+        } elseif (isset($handlers[0])) {
+            $handler = $handlers[0];
+        } else {
+            $handler = null;
+        }
+
         if (!$handler) {
-            yield isset($request->params['id']) ? [$request->params['id']] : [];
+            yield [ $binding, $request ];
             return;
         }
 
