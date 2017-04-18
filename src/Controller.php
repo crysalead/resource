@@ -227,18 +227,17 @@ class Controller
         $controller = $this->name();
         $name = lcfirst($controller);
 
-        $runs = 0;
         $success = true;
         $status = 500;
         $errors = [];
+        $resources = [];
 
         foreach ($this->args($action, $request) as $args) {
             try {
-                $resource = $args[0];
-                $status = $this->_run($action, $args, $resource);
-                $runs++;
+                $status = $this->_run($action, $args, $args[0]);
+                $resources[] = $args[0];
 
-                if ($runs > 1 && $method === 'GET') {
+                if (count($resources) > 1 && $method === 'GET') {
                     throw new ResourceException("Bluk actions are not available through GET queries.");
                 }
             } catch (Throwable $e) {
@@ -247,8 +246,11 @@ class Controller
             }
         }
 
-        if ($runs === 1) {
+        if (count($resources) === 1) {
             $this->_data[$name] = reset($this->_data[$name]);
+            $resource = reset($resources);
+        } else {
+            $resource = $this->_collection($resources);
         }
 
         $status = $this->status() ? $this->status() : $status;
@@ -265,7 +267,8 @@ class Controller
             'template'    => $this->_template ?: strtolower($controller) . '/' . $action,
             'layout'      => $this->_layout,
             'errors'      => $errors,
-            'data'        => $this->data()
+            'data'        => $this->data(),
+            'bulk'        => count($resources) > 1
         ];
 
         $this->_render($resource, $options);
@@ -565,5 +568,16 @@ class Controller
     protected function _fetch($resource)
     {
         return $resource;
+    }
+
+    /**
+     * Wraps passed parameter into a collection
+     *
+     * @param  Array  $resources An array of resources.
+     * @return Object            The collection instance.
+     */
+    protected function _collection($resources)
+    {
+        return $resources;
     }
 }

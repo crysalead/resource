@@ -2,6 +2,7 @@
 namespace Lead\Resource\Chaos\JsonApi;
 
 use IteratorAggregate;
+use Chaos\ORM\Collection;
 use Lead\Resource\ResourceException;
 use Lead\Resource\Chaos\JsonApi\Payload;
 
@@ -276,5 +277,20 @@ trait JsonApiHandlers
             return $resource->getIterator();
         }
         return $resource;
+    }
+
+    /**
+     * Wraps passed parameter into a collection
+     *
+     * @param  Array  $resources An array of resources.
+     * @return Object            The collection instance.
+     */
+    protected function _collection($resources)
+    {
+        if ($resources instanceof Collection) {
+            return $resources;
+        }
+        $binding = $this->binding();
+        return $binding::create($resources, ['type' => 'set']);
     }
 }
