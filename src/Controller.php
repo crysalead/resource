@@ -320,11 +320,8 @@ class Controller
         $success = call_user_func_array([$this, $action], $args);
         $transitions[] = $this->state($resource, $success === true ? compact('success') : []);
 
-        $method = $this->request->method();
-        if ($method !== 'GET') {
-            if (!is_bool($success)) {
-                throw new ResourceException("{$method} queries must return a boolean value.");
-            }
+        if (!is_bool($success) && in_array($action, array_keys($this->_stateTransitions), true)) {
+            throw new ResourceException("`{$action}` queries must return a boolean value.");
         } else {
             $resource = $success !== null ? $success : $resource;
         }
@@ -448,7 +445,6 @@ class Controller
             yield [ $binding, $request ];
             return;
         }
-
         foreach (call_user_func($handler, $request, $options) as $args) {
             yield $args;
         }
