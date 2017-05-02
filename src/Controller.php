@@ -296,8 +296,10 @@ class Controller
             $format = true;
         }
         if ($format === true) {
+            $request->negotiate();
             $response->negotiate($request);
         } elseif ($format) {
+            $request->format($format);
             $response->format($format);
         }
     }
