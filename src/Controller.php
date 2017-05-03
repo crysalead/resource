@@ -322,10 +322,12 @@ class Controller
         $success = call_user_func_array([$this, $action], $args);
         $transitions[] = $this->state($resource, $success === true ? compact('success') : []);
 
-        if (!is_bool($success) && in_array($action, array_keys($this->_stateTransitions), true)) {
-            throw new ResourceException("`{$action}` queries must return a boolean value.");
-        } else {
-            $resource = $success !== null ? $success : $resource;
+        if (!is_bool($success)) {
+            if (in_array($action, array_keys($this->_stateTransitions), true)) {
+                throw new ResourceException("`{$action}` queries must return a boolean value.");
+            } else {
+                $resource = $success;
+            }
         }
 
         $resource = is_object($resource) ? $this->_fetch($resource) : $resource;
