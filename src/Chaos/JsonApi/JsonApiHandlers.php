@@ -254,7 +254,7 @@ trait JsonApiHandlers
             $orders = [];
             foreach (explode(',', $q['sort']) as $field) {
                 if (substr($field, 0, 1) === '-') {
-                    $orders[substr($field, 1, 0)] = 'DESC';
+                    $orders[substr($field, 1)] = 'DESC';
                 } else {
                     $orders[$field] = 'ASC';
                 }
