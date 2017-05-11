@@ -330,15 +330,7 @@ class Controller
             $resource = $success !== null ? $success : $resource;
         }
 
-        $resource = is_object($resource) ? $this->_fetch($resource) : $resource;
-
-        $params = $this->request->params();
-        if (isset($params['id'])) {
-            if (!$resource = $resource->rewind()) {
-                $params = $this->request->params();
-                throw new ResourceException("Resource `{$this->name()}` has no `{$this->_key}` with value `{$params['id']}`.", 404);
-            }
-        }
+        $resource = $this->_fetch($resource);
 
         $this->_data[$name][] = $resource;
 

@@ -276,7 +276,14 @@ trait JsonApiHandlers
     protected function _fetch($resource)
     {
         if ($resource instanceof IteratorAggregate) {
-            return $resource->getIterator();
+            $resource = $resource->getIterator();
+            $params = $this->request->params();
+            if (isset($params['id'])) {
+                if (!$resource = $resource->rewind()) {
+                    $params = $this->request->params();
+                    throw new ResourceException("Resource `{$this->name()}` has no `{$this->_key}` with value `{$params['id']}`.", 404);
+                }
+            }
         }
         return $resource;
     }
