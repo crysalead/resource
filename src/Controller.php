@@ -119,7 +119,8 @@ class Controller
         'add' => [
             [[], ['success' => true], 201],
             [['exists' => false], ['exists' => true], 201],
-            [['exists' => false], ['exists' => false], 422]
+            [[], ['valid' => false], 422],
+            [['exists' => false], ['exists' => false], 500]
         ],
         'edit' => [
             [
@@ -127,8 +128,8 @@ class Controller
                 ['exists' => true, 'valid' => true, 'success' => true],
                 200
             ],
-            [[], ['success' => false], 422],
-            [[], ['valid' => false], 422]
+            [[], ['valid' => false], 422],
+            [[], ['success' => false], 500]
         ],
         'delete' => [
             [['exists' => true], ['exists' => false], 204],
