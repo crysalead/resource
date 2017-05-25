@@ -43,7 +43,7 @@ describe("Payload", function() use ($connection) {
             $this->payload->set(['hello' => 'world']);
 
             expect($this->payload->errors())->toBe([[
-                'status' => 500,
+                'status' => '500',
                 'code'   => 500,
                 'title'  => "The JSON-API serializer only supports Chaos entities."
             ]]);
@@ -61,10 +61,10 @@ describe("Payload", function() use ($connection) {
             $this->payload->set($gallery);
 
             expect($this->payload->errors())->toBe([[
-                'status' => 422,
-                'code'   => 0,
+                'status' => '422',
+                'code'   => 422,
                 'title'  => "Validation Error",
-                'meta'   => [
+                'data'   => [
                     [
                         'name' => [
                             'is required'

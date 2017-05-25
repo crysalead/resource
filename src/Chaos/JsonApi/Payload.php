@@ -267,7 +267,7 @@ class Payload
     {
         if (!$entity instanceof Model) {
             $this->errors([[
-                'status' => 500,
+                'status' => '500',
                 'code'   => 500,
                 'title'  => "The JSON-API serializer only supports Chaos entities.",
             ]]);
@@ -627,10 +627,10 @@ class Payload
         $errors = $this->_errors;
         if (array_filter($this->_validationErrors)) {
             $errors[] = [
-                'status' => 422,
-                'code'   => 0,
+                'status' => '422',
+                'code'   => 422,
                 'title'  => 'Validation Error',
-                'meta'   => $this->_validationErrors
+                'data'   => $this->_validationErrors
             ];
         }
         return $errors;
