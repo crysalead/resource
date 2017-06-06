@@ -116,6 +116,13 @@ class Payload
     protected $_importer = null;
 
     /**
+     * Boolean indicating if the stored data is a collection or not
+     *
+     * @var boolean
+     */
+    protected $_isCollection = false;
+
+    /**
      * Constructor.
      *
      * @param array $config The config array
@@ -194,7 +201,7 @@ class Payload
      */
     public function isCollection()
     {
-        return count($this->_data) !== 1;;
+        return $this->_isCollection;
     }
 
     /**
@@ -207,6 +214,7 @@ class Payload
     {
         $this->_validationErrors = [];
         if ($resource instanceof Collection) {
+            $this->_isCollection = true;
             $this->meta($resource->meta());
             foreach ($resource as $entity) {
                 $this->push($entity);
@@ -237,6 +245,11 @@ class Payload
             $this->_indexed[(string) $entity->id()] = key($this->_data);
             reset($this->_data);
         }
+
+        if (count($this->_data) > 1) {
+            $this->isCollection = true;
+        }
+
         return $this;
     }
 
@@ -442,6 +455,7 @@ class Payload
     public function delete($resource)
     {
         if ($resource instanceof Collection) {
+            $this->_isCollection = true;
             $this->meta($resource->meta());
             foreach ($resource as $entity) {
                 $this->_data[] = $this->_data($entity, false);
@@ -469,7 +483,7 @@ class Payload
     {
         if ($id === null) {
             $collection = $this->data();
-            $collection = count($this->_data) === 1 ? [$collection] : $collection;
+            $collection = $this->_isCollection ? $collection : [$collection];
         } else {
             if (!isset($this->_indexed[$id])) {
                 throw new ResourceException("Unexisting data entry for id {$id} in the JSON-API payload.");
@@ -599,10 +613,15 @@ class Payload
     public function data($data = [])
     {
         if (!func_num_args()) {
-            return count($this->_data) === 1 ? reset($this->_data) : $this->_data;
+            return $this->_isCollection ? $this->_data : reset($this->_data);
         }
-        if ($data && !isset($data[0])) {
-            $data = [$data];
+
+        if ($data) {
+            if (!isset($data[0])) {
+                $data = [$data];
+            } else {
+                $this->_isCollection = true;
+            }
         }
         $this->_data = $data;
         foreach ($data as $key => $value) {
