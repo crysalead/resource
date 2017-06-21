@@ -274,7 +274,7 @@ class Controller
 
         $this->_render($resource, $options);
 
-        return $success;
+        return $response;
     }
 
     /**
