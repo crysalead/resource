@@ -104,6 +104,13 @@ class Payload
     protected $_relationships = [];
 
     /**
+     * The embeded relationships definition.
+     *
+     * @var mixed
+     */
+    protected $_embed = false;
+
+    /**
      * Link generator handler.
      *
      * @var callable
@@ -210,18 +217,18 @@ class Payload
      * @param  mixed   $resource The Chaos entity/collection to set as payload.
      * @return self
      */
-    public function set($resource)
+    public function set($resource, $options = [])
     {
         $this->_validationErrors = [];
         if ($resource instanceof Collection) {
             $this->_isCollection = true;
             $this->meta($resource->meta());
             foreach ($resource as $entity) {
-                $this->push($entity);
+                $this->push($entity, $options);
             }
             return $this;
         }
-        $this->push($resource);
+        $this->push($resource, $options);
         return $this;
     }
 
@@ -231,14 +238,19 @@ class Payload
      * @param  object  $entity The Chaos entity to push in the payload.
      * @return self
      */
-    public function push($entity)
+    public function push($entity, $options = [])
     {
+        $this->_embed = !empty($options['embed']) ? $options['embed'] : false;
+        if ($this->_embed === true) {
+            $this->_embed = $entity->hierarchy();
+        }
+
         $data = $this->_push($entity);
         if ($data === null) {
             return;
         }
         $this->_data[] = $data;
-        $this->_storeValidationError($entity);
+        $this->_storeValidationError($entity, $options);
 
         if ($this->_exists($entity)) {
             end($this->_data);
@@ -308,9 +320,9 @@ class Payload
      *
      * @param  object  $entity     The Chaos entity.
      */
-    public function _storeValidationError($entity)
+    public function _storeValidationError($entity, $options)
     {
-        if (!$errors = $entity->errors()) {
+        if (!$errors = $entity->errors($options)) {
             $this->_validationErrors[] = null;
             return;
         }
@@ -328,8 +340,17 @@ class Payload
     {
         $through = [];
 
+        $schema = $entity->schema();
+        $this->_embed = $schema->treeify($this->_embed);
+
         foreach ($relations as $name) {
+            if (!array_key_exists($name, $this->_embed)) {
+                continue;
+            }
+            $embed = $this->_embed;
+            $this->_embed = $this->_embed[$name] && !empty($this->_embed[$name]['embed']) ? $this->_embed[$name]['embed'] : false;
             $this->_populateRelationship($entity, $name, $data, $through);
+            $this->_embed = $embed;
         }
         if (isset($data['relationships'])) {
             $data['relationships'] = array_filter($data['relationships']);

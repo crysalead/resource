@@ -58,7 +58,7 @@ describe("Payload", function() use ($connection) {
             $gallery = Gallery::create();
             $gallery->validates();
 
-            $this->payload->set($gallery);
+            $this->payload->set($gallery, ['embed' => true]);
 
             expect($this->payload->errors())->toBe([[
                 'status' => '422',
@@ -151,7 +151,7 @@ describe("Payload", function() use ($connection) {
             $image->tags[] = Tag::create(['id' => 2, 'name' => 'Science'], ['exists' => true]);
             $image->gallery = ['name' => 'Gallery 1'];
 
-            $this->payload->set($image);
+            $this->payload->set($image, ['embed' => true]);
 
             $collection = $this->payload->export(null, Image::class);
             $item = $collection[0];
@@ -220,7 +220,7 @@ describe("Payload", function() use ($connection) {
             $image->tags[] = ['name' => 'Science'];
             $image->gallery = ['name' => 'Gallery 1'];
 
-            $this->payload->set($image);
+            $this->payload->set($image, ['embed' => true]);
             expect($this->payload->data())->toEqual([
                 'type'   => 'Image',
                 'exists' => false,
@@ -294,7 +294,7 @@ describe("Payload", function() use ($connection) {
             $image->tags[] = Tag::create(['id' => 2, 'name' => 'Science'], ['exists' => true]);
             $image->gallery = ['name' => 'Gallery 1'];
 
-            $this->payload->set($image);
+            $this->payload->set($image, ['embed' => true]);
             expect($this->payload->data())->toEqual([
                 'type'   => 'Image',
                 'exists' => false,
@@ -381,7 +381,7 @@ describe("Payload", function() use ($connection) {
 
             $image = Image::load(1, ['embed' => ['gallery', 'tags']]);
 
-            $this->payload->set($image);
+            $this->payload->set($image, ['embed' => true]);
 
             expect($this->payload->isCollection())->toBe(false);
 
@@ -484,13 +484,41 @@ describe("Payload", function() use ($connection) {
 
         });
 
+        it("doesn't embed any data by default", function() {
+
+            $this->fixtures->populate('gallery');
+            $this->fixtures->populate('image');
+            $this->fixtures->populate('image_tag');
+            $this->fixtures->populate('tag');
+
+            $image = Image::load(1, ['embed' => ['gallery', 'tags']]);
+
+            $this->payload->set($image);
+
+            expect($this->payload->isCollection())->toBe(false);
+
+            expect($this->payload->data())->toBe([
+                'type' => 'Image',
+                'id' => 1,
+                'exists' => true,
+                'attributes' => [
+                    'gallery_id' => 1,
+                    'name' => 'amiga_1200.jpg',
+                    'title' => 'Amiga 1200',
+                ]
+            ]);
+
+            expect($this->payload->included())->toBe([]);
+
+        });
+
         it("serializes collections", function() {
 
             $this->fixtures->populate('image');
 
             $images = Image::find()->where(['id' => [1 , 2]])->all();
             $images->meta(['count' => 10]);
-            $this->payload->set($images);
+            $this->payload->set($images, ['embed' => true]);
 
             expect($this->payload->isCollection())->toBe(true);
 
@@ -543,7 +571,7 @@ describe("Payload", function() use ($connection) {
                 'title' => ''
             ], ['exists' => true]);
 
-            $this->payload->set($image);
+            $this->payload->set($image, ['embed' => true]);
 
             expect($this->payload->data())->toBe([
                 'type' => 'Image',
