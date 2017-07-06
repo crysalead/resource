@@ -283,6 +283,8 @@ describe("Payload", function() use ($connection) {
 
             expect($this->payload->included())->toBe([]);
 
+            expect($this->payload->embedded())->toBe(['gallery', 'images_tags.tag']);
+
         });
 
         it("serializes unexisting & existing entities", function() {
@@ -369,6 +371,8 @@ describe("Payload", function() use ($connection) {
                     ]
                 ]
             ]);
+
+            expect($this->payload->embedded())->toBe(['gallery', 'images_tags.tag']);
 
         });
 
@@ -481,6 +485,8 @@ describe("Payload", function() use ($connection) {
                     ]
                 ]
             ]);
+
+            expect($this->payload->embedded())->toBe(['gallery', 'images_tags.tag']);
 
         });
 
@@ -660,6 +666,8 @@ describe("Payload", function() use ($connection) {
                     ]
                 ]
             ]);
+
+            expect($payload->embedded())->toBe(['author', 'comments.author']);
 
         });
 

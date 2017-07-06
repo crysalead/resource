@@ -2,6 +2,7 @@
 namespace Lead\Resource\Chaos\JsonApi;
 
 use Exception;
+use Lead\Set\Set;
 use Lead\Inflector\Inflector;
 use Lead\Net\Http\Media;
 use Lead\Resource\ResourceException;
@@ -651,6 +652,52 @@ class Payload
             }
         }
         return $this;
+    }
+
+    /**
+     * Get embedded relationships.
+     *
+     * @return array
+     */
+    public function embedded()
+    {
+        $embedded = [];
+
+        foreach ($this->_data as $key => $value) {
+            if (!isset($value['relationships'])) {
+                continue;
+            }
+            $embedded = $embedded + $this->_embedded($value['relationships']);
+        }
+        return array_keys(Set::flatten($embedded));
+    }
+
+    /**
+     * Helper method.
+     *
+     * @param  array  $data   The data to parse
+     * @param  string $prefix The prefix
+     * @return array
+     */
+    protected function _embedded($data)
+    {
+        $embedded = [];
+        foreach ($data as $key => $value) {
+            $embedded[$key] = true;
+            $value = $value['data'];
+            $value = isset($value[0]) ? reset($value) : $value;
+
+            if (!isset($value['type'])) {
+                continue;
+            }
+            $type = $value['type'];
+            if (isset($value['id']) && isset($this->_relationships[$type][$value['id']])) {
+                $embedded[$key] = $this->_embedded($this->_relationships[$type][$value['id']]);
+            } elseif (isset($value['relationships'])) {
+                $embedded[$key] = $this->_embedded($value['relationships']);
+            }
+        }
+        return $embedded;
     }
 
     /**
