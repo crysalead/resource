@@ -545,7 +545,7 @@ class Controller
         if (!empty($options['status'])) {
             $this->response->status($options['status']);
         }
-        $this->response->set($resource, $options);
+        $this->response->set($resource, [], $options);
 
         if (!isset($response->headers['Vary'])) {
             $response->headers['Vary'] = ['Accept', 'Accept-Encoding'];
