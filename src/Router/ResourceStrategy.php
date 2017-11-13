@@ -81,7 +81,7 @@ class ResourceStrategy
         $placeholder = '{id:' . $options['format'] . '}';
         $rplaceholder = '{relations:' . $options['relations'] . '}';
 
-        $pattern = '[' . $rplaceholder . '/]*' . $path . '[/' . $placeholder . ']' . '[/' . $options['action'] . ']';
+        $pattern = '[/' . $rplaceholder . ']*/' . $path . '[/' . $placeholder . ']' . '[/' . $options['action'] . ']';
 
         $options['params'] = ['resource' => $slug];
 
