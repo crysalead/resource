@@ -1,10 +1,10 @@
 <?php
-use Lead\Box\Box;
+use Kahlan\Box\Box;
 use Chaos\Database\Adapter\Sqlite;
 
 date_default_timezone_set('UTC');
 
-$box = box('resource.spec', new Box());
+$box = \Kahlan\box('resource.spec', new Box());
 $box->factory('source.database.sqlite', function() {
     $connection = new Sqlite();
 

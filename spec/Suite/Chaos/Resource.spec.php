@@ -13,7 +13,7 @@ use Lead\Resource\Spec\Fixture\Model\Image;
 use Lead\Resource\Spec\Fixture\Model\ImageTag;
 use Lead\Resource\Spec\Fixture\Model\Tag;
 
-$box = box('resource.spec');
+$box = \Kahlan\box('resource.spec');
 
 $connection = $box->get('source.database.sqlite');
 

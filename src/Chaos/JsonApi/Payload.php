@@ -195,11 +195,13 @@ class Payload
         $type = $data['type'];
         $attributes = isset($data['attributes']) ? $data['attributes'] : [];
         $key = isset($this->_keys[$type]) ? $this->_keys[$type] : $this->_key;
+        if (!isset($this->_store[$type][$id])) {
+            $this->_included[] = $data;
+        }
         $this->_store[$type][$id] = [$key => $id] + $attributes;
         if (isset($data['relationships'])) {
             $this->_relationships[$type][$id] = $data['relationships'];
         }
-        $this->_included[] = $data;
     }
 
     /**

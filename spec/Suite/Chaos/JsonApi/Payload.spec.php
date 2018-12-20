@@ -8,7 +8,7 @@ use Lead\Resource\Spec\Fixture\Model\Gallery;
 use Lead\Resource\Spec\Fixture\Model\Image;
 use Lead\Resource\Spec\Fixture\Model\Tag;
 
-$box = box('resource.spec');
+$box = \Kahlan\box('resource.spec');
 
 $connection = $box->get('source.database.sqlite');
 
@@ -479,6 +479,231 @@ describe("Payload", function() use ($connection) {
                             'data' => [
                                 'type' => 'Tag',
                                 'id' => 3,
+                                'exists' => true
+                            ]
+                        ]
+                    ]
+                ]
+            ]);
+
+            expect($this->payload->embedded())->toBe(['gallery', 'images_tags.tag']);
+
+        });
+
+        it("doesn't duplicate included data", function() {
+
+            $this->fixtures->populate('gallery');
+            $this->fixtures->populate('image');
+            $this->fixtures->populate('image_tag');
+            $this->fixtures->populate('tag');
+
+            $image1 = Image::load(1, ['embed' => ['gallery', 'tags']]);
+            $image4 = Image::load(4, ['embed' => ['gallery', 'tags']]);
+
+            $this->payload->set(Image::create([$image1, $image4], ['type' => 'set']), ['embed' => true]);
+
+            expect($this->payload->isCollection())->toBe(true);
+
+            expect($this->payload->data())->toBe([
+                [
+                    'type' => 'Image',
+                    'id' => 1,
+                    'exists' => true,
+                    'attributes' => [
+                        'gallery_id' => 1,
+                        'name' => 'amiga_1200.jpg',
+                        'title' => 'Amiga 1200',
+                    ],
+                    'relationships' => [
+                        'gallery' => [
+                            'data' => [
+                                'type' => 'Gallery',
+                                'id' => 1,
+                                'exists' => true
+                            ]
+                        ],
+                        'images_tags' => [
+                            'data' => [
+                                [
+                                    'type' => 'ImageTag',
+                                    'id' => 1,
+                                    'exists' => true
+                                ],
+                                [
+                                    'type' => 'ImageTag',
+                                    'id' => 2,
+                                    'exists' => true
+                                ]
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    'type' => 'Image',
+                    'id' => 4,
+                    'exists' => true,
+                    'attributes' => [
+                        'gallery_id' => 2,
+                        'name' => 'silicon_valley.jpg',
+                        'title' => 'Silicon Valley',
+                    ],
+                    'relationships' => [
+                        'gallery' => [
+                            'data' => [
+                                'type' => 'Gallery',
+                                'id' => 2,
+                                'exists' => true
+                            ]
+                        ],
+                        'images_tags' => [
+                            'data' => [
+                                [
+                                    'type' => 'ImageTag',
+                                    'id' => 5,
+                                    'exists' => true
+                                ],
+                                [
+                                    'type' => 'ImageTag',
+                                    'id' => 6,
+                                    'exists' => true
+                                ],
+                                [
+                                    'type' => 'ImageTag',
+                                    'id' => 7,
+                                    'exists' => true
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]);
+
+            expect($this->payload->included())->toBe([
+                [
+                    'type' => 'Gallery',
+                    'id' => 1,
+                    'exists' => true,
+                    'attributes' => [
+                        'name' => 'Foo Gallery'
+                    ]
+                ],
+                [
+                    'type' => 'Tag',
+                    'id' => 1,
+                    'exists' => true,
+                    'attributes' => [
+                        'name' => 'High Tech'
+                    ]
+                ],
+                [
+                    'type' => 'ImageTag',
+                    'id' => 1,
+                    'exists' => true,
+                    'attributes' => [
+                        'image_id' => 1,
+                        'tag_id' => 1
+                    ],
+                    'relationships' => [
+                        'tag' => [
+                            'data' => [
+                                'type' => 'Tag',
+                                'id' => 1,
+                                'exists' => true
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    'type' => 'Tag',
+                    'id' => 3,
+                    'exists' => true,
+                    'attributes' => [
+                        'name' => 'Computer'
+                    ]
+                ],
+                [
+                    'type' => 'ImageTag',
+                    'id' => 2,
+                    'exists' => true,
+                    'attributes' => [
+                        'image_id' => 1,
+                        'tag_id' => 3
+                    ],
+                    'relationships' => [
+                        'tag' => [
+                            'data' => [
+                                'type' => 'Tag',
+                                'id' => 3,
+                                'exists' => true
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    'type' => 'Gallery',
+                    'id' => 2,
+                    'exists' => true,
+                    'attributes' => [
+                        'name' => 'Bar Gallery'
+                    ]
+                ],
+                [
+                    'type' => 'Tag',
+                    'id' => 6,
+                    'exists' => true,
+                    'attributes' => [
+                        'name' => 'City'
+                    ]
+                ],
+                [
+                    'type' => 'ImageTag',
+                    'id' => 5,
+                    'exists' => true,
+                    'attributes' => [
+                        'image_id' => 4,
+                        'tag_id' => 6
+                    ],
+                    'relationships' => [
+                        'tag' => [
+                            'data' => [
+                                'type' => 'Tag',
+                                'id' => 6,
+                                'exists' => true
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    'type' => 'ImageTag',
+                    'id' => 6,
+                    'exists' => true,
+                    'attributes' => [
+                        'image_id' => 4,
+                        'tag_id' => 3
+                    ],
+                    'relationships' => [
+                        'tag' => [
+                            'data' => [
+                                'type' => 'Tag',
+                                'id' => 3,
+                                'exists' => true
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    'type' => 'ImageTag',
+                    'id' => 7,
+                    'exists' => true,
+                    'attributes' => [
+                        'image_id' => 4,
+                        'tag_id' => 1
+                    ],
+                    'relationships' => [
+                        'tag' => [
+                            'data' => [
+                                'type' => 'Tag',
+                                'id' => 1,
                                 'exists' => true
                             ]
                         ]
