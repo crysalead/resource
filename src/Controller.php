@@ -244,6 +244,7 @@ class Controller
             } catch (Throwable $e) {
                 $success = false;
                 $errors[] = $e;
+                $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 500);
             }
         }
 
