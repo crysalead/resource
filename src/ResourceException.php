@@ -3,5 +3,5 @@ namespace Lead\Resource;
 
 class ResourceException extends \RuntimeException
 {
-    protected $code = 500;
+    protected $code = 499;
 }

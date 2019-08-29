@@ -120,7 +120,7 @@ class Controller
             [[], ['success' => true], 201],
             [['exists' => false], ['exists' => true], 201],
             [[], ['valid' => false], 422],
-            [['exists' => false], ['exists' => false], 500]
+            [['exists' => false], ['exists' => false], 599]
         ],
         'edit' => [
             [
@@ -129,7 +129,7 @@ class Controller
                 200
             ],
             [[], ['valid' => false], 422],
-            [[], ['success' => false], 500]
+            [[], ['success' => false], 599]
         ],
         'delete' => [
             [['exists' => true], ['exists' => false], 204],
@@ -200,7 +200,7 @@ class Controller
     public function binding()
     {
         $name = $this->name();
-        throw new ResourceException("The `{$name}` resource has no model binding defined.", 500);
+        throw new ResourceException("The `{$name}` resource has no model binding defined.", 599);
     }
 
     /**
@@ -229,7 +229,7 @@ class Controller
         $name = lcfirst($controller);
 
         $success = true;
-        $status = 500;
+        $status = 499;
         $errors = [];
         $resources = [];
 
@@ -244,7 +244,7 @@ class Controller
             } catch (Throwable $e) {
                 $success = false;
                 $errors[] = $e;
-                $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 500);
+                $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499);
             }
         }
 
@@ -359,13 +359,13 @@ class Controller
                 }
                 return $action;
             }
-            throw new ResourceException("The `{$name}` resource could not process the request because the parameters are invalid.", 405);
+            throw new ResourceException("The `{$name}` resource could not process the request because the parameters are invalid.");
         }
         $action = $params['action'];
         $methods = array_diff(get_class_methods($this), get_class_methods(__CLASS__));
         if (!in_array($action, $methods) || strpos($action, '_') === 0) {
             $name = $this->name();
-            throw new ResourceException("The `{$name}` resource doesn't understand how to do `{$action}`.", 405);
+            throw new ResourceException("The `{$name}` resource doesn't understand how to do `{$action}`.");
         }
         return $action;
     }
@@ -424,7 +424,7 @@ class Controller
         $binding = $options['binding'];
 
         if (!class_exists($binding)) {
-            throw new ResourceException("Could not find binding class for resource `{$name}`.", 500);
+            throw new ResourceException("Could not find binding class for resource `{$name}`.", 599);
         }
 
         $handlers = $this->handlers('actions');
