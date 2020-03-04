@@ -26,10 +26,10 @@ trait JsonApiHandlers
         return [
             'state'   => [$this, '_state'],
             'actions' => [
-                [$this, '_operation'],
-                'index' => [$this, '_get'],
-                'view'  => [$this, '_get'],
-                'add'   => [$this, '_post']
+                'index' => [$this, '_index'],
+                'view'  => [$this, '_view'],
+                'add'   => [$this, '_add'],
+                [$this, '_operation']
             ]
         ];
     }
@@ -96,7 +96,7 @@ trait JsonApiHandlers
     }
 
     /**
-     * Handler for generating arguments list for GET methods.
+     * Handler for generating arguments list for GET index method.
      *
      * @see Lead\Resource\Controller::args()
      *
@@ -104,13 +104,41 @@ trait JsonApiHandlers
      * @param  array  $options An options array.
      * @return array
      */
-    protected function _get($request, $options)
+    protected function _index($request, $options)
     {
-        $params = $request->params();
         $model = $options['binding'];
         $conditions = $this->_keys($model, $request);
         $query = $model::find(compact('conditions') + $this->_paging($request));
-        return [[ $query, $this->_query($request) ]];
+        return [[$query, $this->_query($request)]];
+    }
+
+    /**
+     * Handler for generating arguments list for GET view method.
+     *
+     * @see Lead\Resource\Controller::args()
+     *
+     * @param  object $request The request instance.
+     * @param  array  $options An options array.
+     * @return array
+     */
+    protected function _view($request, $options)
+    {
+        $model = $options['binding'];
+        $conditions = $this->_keys($model, $request);
+
+        if (empty($conditions[$this->_key])) {
+            throw new ResourceException("Missing `{$this->name()}` resource `" . $this->_key . "`(s).", 422);
+        }
+        $query = $model::find(compact('conditions'));
+        $collection = $query->all();
+        if (!$collection->count()) {
+            $keys = join(', ', $conditions[$this->_key]);
+            throw new ResourceException("No `{$this->name()}` resource(s) found with value `[{$keys}]`, nothing to process.", 404);
+        }
+        foreach ($collection as $entity) {
+            $list[] = [$entity, $this->_query($request)];
+        }
+        return $list;
     }
 
     /**
@@ -122,7 +150,7 @@ trait JsonApiHandlers
      * @param  array  $options An options array.
      * @return array
      */
-    protected function _post($request, $options)
+    protected function _add($request, $options)
     {
         $payload = Payload::parse($request->body());
         if (!$collection = $payload->export(null, $options['binding'])) {

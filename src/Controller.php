@@ -440,7 +440,7 @@ class Controller
         }
 
         if (!$handler) {
-            yield [ $binding, $request ];
+            yield [$binding, $request];
             return;
         }
         foreach (call_user_func($handler, $request, $options) as $args) {
