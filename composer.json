@@ -19,7 +19,7 @@
     },
     "require-dev": {
         "crysalead/chaos-database": "dev-master",
-        "kahlan/kahlan": "~4.0"
+        "kahlan/kahlan": "~4.7"
     },
     "autoload": {
         "psr-4": {
