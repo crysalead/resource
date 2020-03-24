@@ -122,7 +122,13 @@ describe("Payload", function() use ($connection) {
                         ],
                         [
                             'id'   => '12',
-                            'body' => 'I like XML better'
+                            'body' => 'I like XML better',
+                            'author' => [
+                                'id' => '9',
+                                'firstName' => 'Dan',
+                                'lastName' => 'Gebhardt',
+                                'twitter' => 'dgeb'
+                            ]
                         ]
                     ]
                 ],[

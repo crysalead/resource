@@ -522,10 +522,8 @@ class Payload
 
             if (isset($data['id'])) {
                 $result = [$key => $data['id']];
-                $indexes = [$type => [$data['id'] => true]];
             } else {
                 $result = [];
-                $indexes = [];
             }
             $options['exists'] = !empty($data['exists']);
 
@@ -540,7 +538,7 @@ class Payload
             if (isset($data['relationships'])) {
                 foreach ($data['relationships'] as $key => $value) {
                     $to = $schema ? $schema->relation($key)->to() : null;
-                    $result[$key] = $this->_relationship($value['data'], $indexes, $to);
+                    $result[$key] = $this->_relationship($value['data'], $to);
                 }
             }
             $export[] = $result;
@@ -551,7 +549,7 @@ class Payload
     /**
      * Helper for `Payload::export()`.
      */
-    protected function _relationship($collection, &$indexes, $model)
+    protected function _relationship($collection, $model)
     {
         $isCollection = !$collection || isset($collection[0]);
         $collection = $isCollection ? $collection : [$collection];
@@ -562,10 +560,6 @@ class Payload
         foreach ($collection as $data) {
             $options['exists'] = !empty($data['exists']);
             if (isset($data['id'])) {
-                if (isset($indexes[$data['type']][$data['id']])) {
-                    continue;
-                }
-                $indexes[$data['type']][$data['id']] = true;
                 if (!isset($this->_store[$data['type']][$data['id']])) {
                     continue;
                 }
@@ -578,7 +572,7 @@ class Payload
 
             foreach ($relationships as $key => $value) {
                 $to = $schema ? $schema->relation($key)->to() : null;
-                if ($item = $this->_relationship($value['data'], $indexes, $to)) {
+                if ($item = $this->_relationship($value['data'], $to)) {
                     $result[$key] = $item;
                 }
             }
