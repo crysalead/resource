@@ -109,6 +109,8 @@ trait JsonApiHandlers
         $model = $options['binding'];
         $conditions = $this->_keys($model, $request);
         $query = $model::find(compact('conditions') + $this->_paging($request));
+        $q = $request->query();
+        $query->fetchOptions(['return' => isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN) ? 'array' : 'entity']);
         return [[$query, $this->_query($request)]];
     }
 
@@ -304,13 +306,31 @@ trait JsonApiHandlers
     protected function _fetch($resource)
     {
         if ($resource instanceof IteratorAggregate) {
-            $resource = $resource->getIterator();
+            $query = $resource;
+            $fetchOptions = $query->fetchOptions();
+            $resource = $query->getIterator();
             $params = $this->request->params();
             if (isset($params['id'])) {
                 if (!$resource = $resource->rewind()) {
                     $params = $this->request->params();
                     throw new ResourceException("Resource `{$this->name()}` has no `{$this->_key}` with value `{$params['id']}`.", 404);
                 }
+            }
+            if ($fetchOptions['return'] === 'array') {
+                $schema = $query->schema();
+                $key = $schema->key();
+                $data = [];
+                $resource = iterator_to_array($resource);
+                foreach ($resource as $value) {
+                    $id = $value[$key] ?? null;
+                    unset($value[$key]);
+                    $data[] = [
+                        'id' => $id,
+                        'exists' => true,
+                        'attributes' => $value
+                    ];
+                }
+                $resource = $data;
             }
         }
         return $resource;
