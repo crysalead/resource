@@ -28,7 +28,6 @@ trait JsonApiHandlers
             'actions' => [
                 'index' => [$this, '_index'],
                 'view'  => [$this, '_view'],
-                'add'   => [$this, '_add'],
                 [$this, '_operation']
             ]
         ];
@@ -63,7 +62,7 @@ trait JsonApiHandlers
     }
 
     /**
-     * Handler for generating arguments list for PUT, PATCH, DELETE methods.
+     * Handler for generating arguments list for POST, PUT, PATCH, DELETE methods (CRUDs operations) .
      *
      * @see Lead\Resource\Controller::args()
      *
@@ -74,23 +73,45 @@ trait JsonApiHandlers
     protected function _operation($request, $options)
     {
         $model = $options['binding'];
-        $conditions = $this->_keys($model, $request);
+        $method = $request->method();
         $payload = Payload::parse($request->body());
+        $keys  = $payload->keys();
 
-        if (!isset($conditions[$this->_key])) {
-            $conditions[$this->_key] = $payload->keys();
+        if (!$collection = $payload->export(null, $model)) {
+            throw new ResourceException("No data provided for `{$this->name()}` resource(s), nothing to process.", 422);
         }
-        if (empty($conditions[$this->_key])) {
-            throw new ResourceException("Missing `{$this->name()}` resource `" . $this->_key . "`(s).", 422);
+
+        $entityById = [];
+
+        if ($method !== 'POST' && $keys) {
+            $conditions[$this->_key] = $keys;
+            $query = $model::find(compact('conditions'));
+            $data = $query->all();
+            foreach ($data as $entity) {
+                $entityById[$entity[$this->_key]] = $entity;
+            }
+            if ($data->count() !== count($keys)) {
+                $missingKeys = join(', ', array_diff($keys, array_keys($entityById)));
+                throw new ResourceException("No `{$this->name()}` resource(s) found in database with `" . strtoupper($this->_key) . "`s `[{$missingKeys}]`, aborting.", 404);
+            }
+            if ($method !== 'PUT' && $data->count() !== count($collection)) {
+                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`s in payload use POST or PUT to create new resource(s).", 404);
+            }
+        } elseif ($method === 'PATCH' || $method === 'DELETE') {
+            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`(s) in payload.", 422);
         }
-        $query = $model::find(compact('conditions'));
-        $collection = $query->all();
-        if (!$collection->count()) {
-            $keys = join(', ', $conditions[$this->_key]);
-            throw new ResourceException("No `{$this->name()}` resource(s) found with value `[{$keys}]`, nothing to process.", 404);
-        }
-        foreach ($collection as $entity) {
-            $list[] = [$entity, $payload->export((string) $entity->id(), $model), $payload];
+
+        foreach ($collection as $data) {
+            $id = $data[$this->_key] ?? null;
+            if (isset($entityById[$id])) {
+                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $payload->export((string) $id, $model), $payload];
+            } elseif ($method === 'POST' || $method === 'PUT') {
+                $instance = $model::create($data);
+                $class = $instance->self();
+                $list[] = ['add', $class::create(), $data, $payload];
+            } else {
+
+            }
         }
         return $list;
     }
@@ -111,7 +132,7 @@ trait JsonApiHandlers
         $query = $model::find(compact('conditions') + $this->_paging($request));
         $q = $request->query();
         $query->fetchOptions(['return' => isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN) ? 'array' : 'entity']);
-        return [[$query, $this->_query($request)]];
+        return [[null, $query, $this->_query($request)]];
     }
 
     /**
@@ -138,31 +159,7 @@ trait JsonApiHandlers
             throw new ResourceException("No `{$this->name()}` resource(s) found with value `[{$keys}]`, nothing to process.", 404);
         }
         foreach ($collection as $entity) {
-            $list[] = [$entity, $this->_query($request)];
-        }
-        return $list;
-    }
-
-    /**
-     * Handler for generating arguments list for POST methods.
-     *
-     * @see Lead\Resource\Controller::args()
-     *
-     * @param  object $request The request instance.
-     * @param  array  $options An options array.
-     * @return array
-     */
-    protected function _add($request, $options)
-    {
-        $payload = Payload::parse($request->body());
-        if (!$collection = $payload->export(null, $options['binding'])) {
-            throw new ResourceException("No data provided for `{$this->name()}` resource(s), nothing to process.", 422);
-        }
-        $list = [];
-        foreach ($collection as $data) {
-            $instance = $options['binding']::create($data);
-            $class = $instance->self();
-            $list[] = [$class::create(), $data, $payload];
+            $list[] = [null, $entity, $this->_query($request)];
         }
         return $list;
     }

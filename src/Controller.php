@@ -99,7 +99,7 @@ class Controller
      */
     protected $_methods = [
         'GET'    => ['view'   => true, 'index' => null],
-        'POST'   => ['add'    => null],
+        'POST'   => ['edit'   => null],
         'PUT'    => ['edit'   => null],
         'PATCH'  => ['edit'   => null],
         'DELETE' => ['delete' => null]
@@ -235,7 +235,8 @@ class Controller
 
         foreach ($this->args($action, $request) as $args) {
             try {
-                $status = $this->_run($action, $args, $args[0]);
+                $transitionName = array_shift($args);
+                $status = $this->_run($action, $args, $args[0], $transitionName);
                 $resources[] = $args[0];
 
                 if (count($resources) > 1 && $method === 'GET') {
@@ -314,7 +315,7 @@ class Controller
      * @param  mixed   $resource The resource.
      * @return integer           A status code.
      */
-    protected function _run($action, $args, &$resource)
+    protected function _run($action, $args, &$resource, $transitionName)
     {
         $controller = $this->name();
         $name = lcfirst($controller);
@@ -324,7 +325,7 @@ class Controller
         $success = call_user_func_array([$this, $action], $args);
         $transitions[] = $this->state($resource, $success === true ? compact('success') : []);
 
-        if (in_array($action, array_keys($this->_stateTransitions), true)) {
+        if (in_array($transitionName, array_keys($this->_stateTransitions), true)) {
             if (!is_bool($success)) {
                 throw new ResourceException("`{$action}` queries must return a boolean value.");
             }
@@ -336,7 +337,7 @@ class Controller
 
         $this->_data[$name][] = $resource;
 
-        return $this->_transitionsStatus($action, $transitions);
+        return $this->_transitionsStatus($transitionName, $transitions);
     }
 
     /**
@@ -431,7 +432,7 @@ class Controller
 
         if (isset($handlers[$action])) {
             $handler = $handlers[$action];
-        } elseif (!in_array($action, ['index', 'view', 'add', 'edit', 'delete'])) {
+        } elseif (!in_array($action, ['index', 'view', 'edit', 'delete'])) {
             $handler = null;
         } elseif (isset($handlers[0])) {
             $handler = $handlers[0];
@@ -440,7 +441,7 @@ class Controller
         }
 
         if (!$handler) {
-            yield [$binding, $request];
+            yield [null, $binding, $request];
             return;
         }
         foreach (call_user_func($handler, $request, $options) as $args) {
@@ -516,15 +517,15 @@ class Controller
     }
 
     /**
-     * Interpolates a response status from an action name and the resource state transitions.
+     * Interpolates a response status from an transition name and the resource state transitions.
      *
-     * @param  string  $action      An action name.
-     * @param  array   $transitions The resource state transitions.
-     * @return integer              A HTTP response code.
+     * @param  string  $transitionName An transition name.
+     * @param  array   $transitions    The resource state transitions.
+     * @return integer                 A HTTP response code.
      */
-    protected function _transitionsStatus($action, $transitions)
+    protected function _transitionsStatus($transitionName, $transitions)
     {
-        $events = isset($this->_stateTransitions[$action]) ? $this->_stateTransitions[$action] : $this->_stateTransitions[0];
+        $events = isset($this->_stateTransitions[$transitionName]) ? $this->_stateTransitions[$transitionName] : $this->_stateTransitions[0];
 
         foreach ($events as $transition) {
             foreach ($transitions as $i => $state) {
