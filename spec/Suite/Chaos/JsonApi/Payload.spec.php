@@ -400,6 +400,7 @@ describe("Payload", function() use ($connection) {
                 'id' => 1,
                 'exists' => true,
                 'attributes' => [
+                    'cid' => 'I1',
                     'gallery_id' => 1,
                     'name' => 'amiga_1200.jpg',
                     'title' => 'Amiga 1200',
@@ -435,6 +436,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 1,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'G1',
                         'name' => 'Foo Gallery'
                     ]
                 ],
@@ -443,6 +445,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 1,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'T1',
                         'name' => 'High Tech'
                     ]
                 ],
@@ -469,6 +472,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 3,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'T3',
                         'name' => 'Computer'
                     ]
                 ],
@@ -516,6 +520,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 1,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'I1',
                         'gallery_id' => 1,
                         'name' => 'amiga_1200.jpg',
                         'title' => 'Amiga 1200',
@@ -549,6 +554,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 4,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'I4',
                         'gallery_id' => 2,
                         'name' => 'silicon_valley.jpg',
                         'title' => 'Silicon Valley',
@@ -590,6 +596,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 1,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'G1',
                         'name' => 'Foo Gallery'
                     ]
                 ],
@@ -598,6 +605,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 1,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'T1',
                         'name' => 'High Tech'
                     ]
                 ],
@@ -624,6 +632,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 3,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'T3',
                         'name' => 'Computer'
                     ]
                 ],
@@ -650,6 +659,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 2,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'G2',
                         'name' => 'Bar Gallery'
                     ]
                 ],
@@ -658,6 +668,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 6,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'T6',
                         'name' => 'City'
                     ]
                 ],
@@ -739,6 +750,7 @@ describe("Payload", function() use ($connection) {
                 'id' => 1,
                 'exists' => true,
                 'attributes' => [
+                    'cid' => 'I1',
                     'gallery_id' => 1,
                     'name' => 'amiga_1200.jpg',
                     'title' => 'Amiga 1200',
@@ -765,6 +777,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 1,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'I1',
                         'gallery_id' => 1,
                         'name' => 'amiga_1200.jpg',
                         'title' => 'Amiga 1200'
@@ -775,6 +788,7 @@ describe("Payload", function() use ($connection) {
                     'id' => 2,
                     'exists' => true,
                     'attributes' => [
+                        'cid' => 'I2',
                         'gallery_id' => 1,
                         'name' => 'srinivasa_ramanujan.jpg',
                         'title' => 'Srinivasa Ramanujan'

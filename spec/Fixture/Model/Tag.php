@@ -6,6 +6,7 @@ class Tag extends BaseModel
     protected static function _define($schema)
     {
         $schema->column('id', ['type' => 'serial']);
+        $schema->column('cid', ['type' => 'string', 'null' => true]);
         $schema->column('name', ['type' => 'string', 'length' => 50]);
 
         $schema->hasMany('images_tags', ImageTag::class, [

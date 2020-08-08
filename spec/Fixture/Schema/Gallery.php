@@ -14,8 +14,8 @@ class Gallery extends \Lead\Resource\Spec\Fixture\Fixture
     public function records()
     {
         $this->populate([
-            ['id' => 1, 'name' => 'Foo Gallery'],
-            ['id' => 2, 'name' => 'Bar Gallery']
+            ['id' => 1, 'cid' => 'G1', 'name' => 'Foo Gallery'],
+            ['id' => 2, 'cid' => 'G2', 'name' => 'Bar Gallery']
         ]);
     }
 }

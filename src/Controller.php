@@ -302,8 +302,12 @@ class Controller
             $request->negotiate();
             $response->negotiate($request);
         } elseif ($format) {
+            $mime = $request->mime();
             $request->format($format);
             $response->format($format);
+            if ($mime !== $request->mime()) {
+                throw new ResourceException("Unsupported `{$mime}` mime type, it requires a `{$request->mime()}` content.", 422);
+            }
         }
     }
 

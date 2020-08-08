@@ -124,16 +124,36 @@ trait JsonApiHandlers
     {
         $model = $options['binding'];
         $method = $request->method();
-        $payload = Payload::parse($request->body());
-        $keys  = $payload->keys();
+        $mime = $request->mime();
+        $definition = $model::definition();
+        $key = $definition->key();
+        $collection = [];
+        $body = $request->body();
+        $payload = null;
 
-        if (!$collection = $payload->export(null, $model)) {
+        if ($mime === 'application/json') {
+            $data = $request->get();
+            $isArray = isset($body[0]) && $body[0] === '[';
+            $collection = $isArray ? $data : ($data ? [$data] : []);
+            $keys = [];
+            foreach ($collection as $data) {
+                if (!empty($data[$key])) {
+                    $keys[] = $data[$key];
+                }
+            }
+        } elseif ($mime === 'application/vnd.api+json') {
+            $payload = Payload::parse($body);
+            $collection = $payload->export(null, $model);
+            $keys = $payload->keys();
+        } else {
+            throw new ResourceException("Unsupported `{$mime}` mime type for CRUD operation.", 422);
+        }
+
+        if (!$collection) {
             throw new ResourceException("No data provided for `{$this->name()}` resource(s), nothing to process.", 422);
         }
 
         $entityById = [];
-        $definition = $model::definition();
-        $key = $definition->key();
 
         if ($method !== 'POST' && $keys) {
             $conditions[$key] = $keys;
@@ -150,19 +170,19 @@ trait JsonApiHandlers
                 throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`s in payload use POST or PUT to create new resource(s).", 404);
             }
         } elseif ($method === 'PATCH' || $method === 'DELETE') {
-            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`(s) in payload.", 422);
+            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`(s) in payload.", 404);
         }
 
         foreach ($collection as $data) {
             $id = $data[$key] ?? null;
             if (isset($entityById[$id])) {
-                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $payload->export((string) $id, $model), $payload];
+                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $data, $payload];
             } elseif ($method === 'POST' || $method === 'PUT') {
                 $instance = $model::create($data);
                 $class = $instance->self();
                 $list[] = ['add', $class::create(), $data, $payload];
             } else {
-
+                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`s in payload use POST or PUT to create new resource(s).", 404);
             }
         }
         return $list;
@@ -196,7 +216,6 @@ trait JsonApiHandlers
             $payload = Payload::parse($request->body());
             $collection = $payload->export(null, $model);
             $collection = $collection ?: [];
-
         } else {
             $collection = [$request->get()];
         }
