@@ -47,7 +47,7 @@ class ResourceStrategy
         $defaults = [
             'key'       => 'id',
             'suffix'    => 'Controller',
-            'format'    => '[^/:][^/]*',
+            'format'    => '[^/:]*',
             'relations' => '[^/]+/[^/:][^/]*'
         ];
         $config += $defaults;
@@ -70,7 +70,6 @@ class ResourceStrategy
     {
         $options += [
             'name'      => $resource,
-            'key'       => $this->_key,
             'format'    => $this->_format,
             'relations' => $this->_relations,
             'action' => ':{action}'
@@ -78,7 +77,7 @@ class ResourceStrategy
         $slug = Inflector::dasherize(Inflector::underscore($resource));
         $path = '{resource:' . $slug . '}';
 
-        $placeholder = '{id:' . $options['format'] . '}';
+        $placeholder = '{id:' . $options['format'] . '}[:{key:cid}]';
         $rplaceholder = '{relations:' . $options['relations'] . '}';
 
         $pattern = '[/' . $rplaceholder . ']*/' . $path . '[/' . $placeholder . ']' . '[/' . $options['action'] . ']';
@@ -107,6 +106,7 @@ class ResourceStrategy
             throw new RouterException("Resource class `{$resource}` not found.");
         }
         $instance = $route->dispatched = new $resource($options + [
+            'key' => $route->params['key'] ?? $this->_key,
             'suffix' => $this->_suffix,
             'router' => $router
         ]);

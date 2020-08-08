@@ -28,7 +28,9 @@ trait JsonApiHandlers
             'actions' => [
                 'index' => [$this, '_index'],
                 'view'  => [$this, '_view'],
-                [$this, '_operation']
+                'edit'  => [$this, '_operation'],
+                'delete'  => [$this, '_operation'],
+                [$this, '_process']
             ]
         ];
     }
@@ -62,6 +64,54 @@ trait JsonApiHandlers
     }
 
     /**
+     * Handler for generating arguments list for GET index method.
+     *
+     * @see Lead\Resource\Controller::args()
+     *
+     * @param  object $request The request instance.
+     * @param  array  $options An options array.
+     * @return array
+     */
+    protected function _index($request, $options)
+    {
+        $model = $options['binding'];
+        $conditions = $this->_fetchingConditions($model, $request);
+        $query = $model::find(compact('conditions') + $this->_paging($request));
+        $q = $request->query();
+        $query->fetchOptions(['return' => isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN) ? 'array' : 'entity']);
+        return [[null, $query, $this->_query($request)]];
+    }
+
+    /**
+     * Handler for generating arguments list for GET view method.
+     *
+     * @see Lead\Resource\Controller::args()
+     *
+     * @param  object $request The request instance.
+     * @param  array  $options An options array.
+     * @return array
+     */
+    protected function _view($request, $options)
+    {
+        $model = $options['binding'];
+        $conditions = $this->_fetchingConditions($model, $request);
+
+        if (empty($conditions[$this->_key])) {
+            throw new ResourceException("Missing `{$this->name()}` resource `" . $this->_key . "`(s).", 422);
+        }
+        $query = $model::find(compact('conditions'));
+        $collection = $query->all();
+        if (!$collection->count()) {
+            $keys = join(', ', $conditions[$this->_key]);
+            throw new ResourceException("No `{$this->name()}` resource(s) found with value `{$keys}` as `" . $this->_key . "`, nothing to process.", 404);
+        }
+        foreach ($collection as $entity) {
+            $list[] = [null, $entity, $this->_query($request)];
+        }
+        return $list;
+    }
+
+    /**
      * Handler for generating arguments list for POST, PUT, PATCH, DELETE methods (CRUDs operations) .
      *
      * @see Lead\Resource\Controller::args()
@@ -82,27 +132,29 @@ trait JsonApiHandlers
         }
 
         $entityById = [];
+        $definition = $model::definition();
+        $key = $definition->key();
 
         if ($method !== 'POST' && $keys) {
-            $conditions[$this->_key] = $keys;
+            $conditions[$key] = $keys;
             $query = $model::find(compact('conditions'));
             $data = $query->all();
             foreach ($data as $entity) {
-                $entityById[$entity[$this->_key]] = $entity;
+                $entityById[$entity[$key]] = $entity;
             }
             if ($data->count() !== count($keys)) {
                 $missingKeys = join(', ', array_diff($keys, array_keys($entityById)));
-                throw new ResourceException("No `{$this->name()}` resource(s) found in database with `" . strtoupper($this->_key) . "`s `[{$missingKeys}]`, aborting.", 404);
+                throw new ResourceException("No `{$this->name()}` resource(s) found in database with `" . strtoupper($key) . "`s `[{$missingKeys}]`, aborting.", 404);
             }
             if ($method !== 'PUT' && $data->count() !== count($collection)) {
-                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`s in payload use POST or PUT to create new resource(s).", 404);
+                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`s in payload use POST or PUT to create new resource(s).", 404);
             }
         } elseif ($method === 'PATCH' || $method === 'DELETE') {
-            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`(s) in payload.", 422);
+            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`(s) in payload.", 422);
         }
 
         foreach ($collection as $data) {
-            $id = $data[$this->_key] ?? null;
+            $id = $data[$key] ?? null;
             if (isset($entityById[$id])) {
                 $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $payload->export((string) $id, $model), $payload];
             } elseif ($method === 'POST' || $method === 'PUT') {
@@ -117,7 +169,7 @@ trait JsonApiHandlers
     }
 
     /**
-     * Handler for generating arguments list for GET index method.
+     * Handler for generating arguments list for POST, PUT, PATCH, DELETE methods (CRUDs operations) .
      *
      * @see Lead\Resource\Controller::args()
      *
@@ -125,41 +177,31 @@ trait JsonApiHandlers
      * @param  array  $options An options array.
      * @return array
      */
-    protected function _index($request, $options)
+    protected function _process($request, $options)
     {
         $model = $options['binding'];
-        $conditions = $this->_keys($model, $request);
-        $query = $model::find(compact('conditions') + $this->_paging($request));
-        $q = $request->query();
-        $query->fetchOptions(['return' => isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN) ? 'array' : 'entity']);
-        return [[null, $query, $this->_query($request)]];
-    }
-
-    /**
-     * Handler for generating arguments list for GET view method.
-     *
-     * @see Lead\Resource\Controller::args()
-     *
-     * @param  object $request The request instance.
-     * @param  array  $options An options array.
-     * @return array
-     */
-    protected function _view($request, $options)
-    {
-        $model = $options['binding'];
-        $conditions = $this->_keys($model, $request);
-
-        if (empty($conditions[$this->_key])) {
-            throw new ResourceException("Missing `{$this->name()}` resource `" . $this->_key . "`(s).", 422);
+        $method = $request->method();
+        if ($method === 'GET') {
+            return [[null, $model, $method === 'GET' ? $request->query() : $request->get()]];
         }
-        $query = $model::find(compact('conditions'));
-        $collection = $query->all();
-        if (!$collection->count()) {
-            $keys = join(', ', $conditions[$this->_key]);
-            throw new ResourceException("No `{$this->name()}` resource(s) found with value `[{$keys}]`, nothing to process.", 404);
+        $body = $request->body();
+        $mime = $request->mime();
+        $list = [];
+        if ($mime === 'application/json') {
+            $payload = $request->get();
+            $isArray = isset($body[0]) && $body[0] === '[';
+            $collection = $isArray ? $payload : [$payload];
+        } elseif ($mime === 'application/vnd.api+json') {
+            $payload = $request->get();
+            $payload = Payload::parse($request->body());
+            $collection = $payload->export(null, $model);
+            $collection = $collection ?: [];
+
+        } else {
+            $collection = [$request->get()];
         }
-        foreach ($collection as $entity) {
-            $list[] = [null, $entity, $this->_query($request)];
+        foreach ($collection as $data) {
+                $list[] = [null, $model, $data, $payload];
         }
         return $list;
     }
@@ -171,7 +213,7 @@ trait JsonApiHandlers
      * @param  array  $request The request.
      * @return array           A list of resource id(s) matching constraints.
      */
-    protected function _keys($model, $request)
+    protected function _fetchingConditions($model, $request)
     {
         $params = $request->params();
 

@@ -64,6 +64,7 @@ describe("Resource", function() use ($connection) {
             'relations' => [],
             'resource'  => 'gallery',
             'id'        => '1',
+            'key'       => null,
             'action'    => null
         ]);
 
@@ -87,6 +88,7 @@ describe("Resource", function() use ($connection) {
             'relations' => [['gallery', '1']],
             'resource'  => 'image',
             'id'        => null,
+            'key'       => null,
             'action'    => null
         ]);
 

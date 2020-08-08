@@ -25,6 +25,7 @@ describe("ResourceStrategy", function() {
             'relations' => [],
             'resource'  => 'routing-test',
             'id'        => null,
+            'key'       => null,
             'action'    => null
         ]);
         expect($route->request->method())->toBe('GET');
@@ -36,6 +37,7 @@ describe("ResourceStrategy", function() {
             'relations' => [],
             'resource'  => 'routing-test',
             'id'        => '123',
+            'key'       => null,
             'action'    => null
         ]);
         expect($route->request->method())->toBe('GET');
@@ -47,6 +49,7 @@ describe("ResourceStrategy", function() {
             'relations' => [],
             'resource'  => 'routing-test',
             'id'        => null,
+            'key'       => null,
             'action'    => 'create'
         ]);
         expect($route->request->method())->toBe('GET');
@@ -58,6 +61,7 @@ describe("ResourceStrategy", function() {
             'relations' => [],
             'resource'  => 'routing-test',
             'id'        => null,
+            'key'       => null,
             'action'    => null
         ]);
         expect($route->request->method())->toBe('POST');
@@ -69,6 +73,7 @@ describe("ResourceStrategy", function() {
             'relations' => [],
             'resource'  => 'routing-test',
             'id'        => '123',
+            'key'       => null,
             'action'    => 'edit'
         ]);
         expect($route->request->method())->toBe('GET');
@@ -80,6 +85,7 @@ describe("ResourceStrategy", function() {
             'relations' => [],
             'resource'  => 'routing-test',
             'id'        => '123',
+            'key'       => null,
             'action'    => null
         ]);
         expect($route->request->method())->toBe('PATCH');
@@ -91,6 +97,7 @@ describe("ResourceStrategy", function() {
             'relations' => [],
             'resource'  => 'routing-test',
             'id'        => '123',
+            'key'       => null,
             'action'    => null
         ]);
         expect($route->request->method())->toBe('DELETE');
@@ -110,6 +117,7 @@ describe("ResourceStrategy", function() {
             'relations' => [['relation-name', '456']],
             'resource'  => 'routing-test',
             'id'        => null,
+            'key'       => null,
             'action'    => null
         ]);
         expect($route->request->method())->toBe('GET');
@@ -121,6 +129,7 @@ describe("ResourceStrategy", function() {
             'relations' => [['relation-name', '456']],
             'resource'  => 'routing-test',
             'id'        => null,
+            'key'       => null,
             'action'    => 'create'
         ]);
         expect($route->request->method())->toBe('GET');
@@ -132,6 +141,7 @@ describe("ResourceStrategy", function() {
             'relations' => [['relation-name', '456']],
             'resource'  => 'routing-test',
             'id'        => null,
+            'key'       => null,
             'action'    => null
         ]);
         expect($route->request->method())->toBe('POST');

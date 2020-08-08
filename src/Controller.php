@@ -62,7 +62,7 @@ class Controller
     protected $_template = null;
 
     /**
-     * The identifier field name.
+     * The url identifier field name.
      *
      * @var string
      */
@@ -432,16 +432,15 @@ class Controller
 
         if (isset($handlers[$action])) {
             $handler = $handlers[$action];
-        } elseif (!in_array($action, ['index', 'view', 'edit', 'delete'])) {
-            $handler = null;
         } elseif (isset($handlers[0])) {
             $handler = $handlers[0];
         } else {
             $handler = null;
         }
 
+        $method = $request->method();
         if (!$handler) {
-            yield [null, $binding, $request];
+            yield [null, $binding, $method === 'GET' ? $request->query() : $request->get()];
             return;
         }
         foreach (call_user_func($handler, $request, $options) as $args) {
