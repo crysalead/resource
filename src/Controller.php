@@ -4,6 +4,7 @@ namespace Lead\Resource;
 use Throwable;
 use Psr\Http\Message\ResponseInterface;
 use Lead\Resource\ResourceException;
+use Lead\Net\Http\Media;
 
 /**
  * Resource oriented controller.
@@ -298,16 +299,39 @@ class Controller
         } else {
             $format = true;
         }
-        if ($format === true) {
+        if (is_array($format)) {
+            list($requestFormat, $responseFormat) = $format;
+        } else {
+            $requestFormat = $format;
+            $responseFormat = $format;
+        }
+
+        if ($requestFormat === true) {
             $request->negotiate();
-            $response->negotiate($request);
-        } elseif ($format) {
+        } else {
             $mime = $request->mime();
-            $request->format($format);
-            $response->format($format);
-            if ($mime !== $request->mime()) {
-                throw new ResourceException("Unsupported `{$mime}` mime type, it requires a `{$request->mime()}` content.", 422);
+            $requestMime = Media::mime($requestFormat);
+            if ($request->body() && $requestMime !== $mime) {
+                throw new ResourceException("Unsupported `{$mime}` Content-Type, it requires a `{$requestMime}` content.", 422);
             }
+            $request->format($requestFormat);
+        }
+        if ($responseFormat === true) {
+            $response->negotiate($request);
+        } else {
+            $responseMime = Media::mime($responseFormat);
+            foreach ($request->accepts() as $mime => $value) {
+                if (Media::suitable($request, $responseMime)) {
+                    $response->format($responseFormat);
+                    return;
+                }
+            }
+            $mimes = [];
+            foreach ($request->accepts() as $mime => $value) {
+                $mimes[] = $mime;
+            }
+            $mimes = join(', ', $mimes);
+            throw new ResourceException("Unsupported `{$mimes}` Accept types, it requires a `{$responseMime}` response.", 422);
         }
     }
 

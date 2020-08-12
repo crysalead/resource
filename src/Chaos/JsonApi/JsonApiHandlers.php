@@ -220,7 +220,7 @@ trait JsonApiHandlers
             $collection = [$request->get()];
         }
         foreach ($collection as $data) {
-                $list[] = [null, $model, $data, $payload];
+                $list[] = [null, $model, $data, null];
         }
         return $list;
     }
