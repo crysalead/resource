@@ -576,8 +576,8 @@ class Controller
         }
         $this->response->set($resource, [], $options);
 
-        if (!isset($response->headers['Vary'])) {
-            $response->headers['Vary'] = ['Accept', 'Accept-Encoding'];
+        if (!isset($this->response->headers['Vary'])) {
+            $this->response->headers['Vary'] = ['Accept', 'Accept-Encoding'];
         }
     }
 
