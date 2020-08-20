@@ -1,7 +1,7 @@
 <?php
 namespace Lead\Resource\Spec\Suite\Chaos\JsonApi;
 
-use Lead\Resource\Chaos\JsonApi\Cid;
+use Lead\Resource\Chaos\JsonApi\CidResolver;
 
 use Lead\Resource\Spec\Fixture\Fixtures;
 use Lead\Resource\Spec\Fixture\Model\Gallery;
@@ -12,7 +12,7 @@ $box = \Kahlan\box('resource.spec');
 
 $connection = $box->get('source.database.sqlite');
 
-describe("Cid", function() use ($connection) {
+describe("CidResolver", function() use ($connection) {
 
     beforeEach(function() use ($connection) {
 
@@ -27,7 +27,7 @@ describe("Cid", function() use ($connection) {
             ]
         ]);
 
-        $this->cid = new Cid();
+        $this->cidResolver = new CidResolver();
 
     });
 
@@ -36,9 +36,10 @@ describe("Cid", function() use ($connection) {
         $this->fixtures->reset();
     });
 
-    describe("->ingest()", function() {
+    describe("->resolve()", function() {
 
-        it("ingest data", function() {
+        it("keeps data unchanged when no cid exists", function() {
+
             $collection = [[
                 'title' => 'Amiga 1200',
                 'gallery' => [
@@ -53,13 +54,12 @@ describe("Cid", function() use ($connection) {
                     ]
                 ]
             ]];
-            $this->cid->ingest($collection, Image::class);
-            expect($this->cid->resolve($collection, Image::class))->toBe($collection);
+
+            expect($this->cidResolver->resolve($collection, Image::class))->toBe($collection);
 
         });
 
-        it("ingest data with cid", function() {
-
+        it("resolve data with cid", function() {
 
             $this->fixtures->populate('gallery');
             $this->fixtures->populate('image');
@@ -78,8 +78,8 @@ describe("Cid", function() use ($connection) {
                     ]
                 ]
             ]];
-            $this->cid->ingest($collection, Image::class);
-            expect($this->cid->resolve($collection, Image::class))->toBe([[
+
+            expect($this->cidResolver->resolve($collection, Image::class))->toBe([[
                 'title' => 'Amiga 1200',
                 'images_tags' => [
                     [

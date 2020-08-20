@@ -1,7 +1,7 @@
 <?php
 namespace Lead\Resource\Chaos\JsonApi;
 
-class Cid
+class CidResolver
 {
     /**
      * Indexes included data using type & id.
@@ -10,33 +10,9 @@ class Cid
      */
     protected $_store = [];
 
-    public function ingest($collection, $model)
-    {
-        $definition = $model::definition();
-        $relations = [];
-        foreach ($definition->relations() as $name) {
-            $relations[$name] = $definition->relation($name);
-        }
-        foreach ($collection as $data) {
-            foreach ($relations as $key => $relation) {
-                $to = $relation->to();
-                if ($relation->type() === 'belongsTo') {
-                    if (!empty($data[$key . 'Cid'])) {
-                        $this->_store[$to][$data[$key . 'Cid']] = null;
-                    } elseif (!empty($data[$key . '_cid'])) {
-                        $this->_store[$to][$data[$key . '_cid']] = null;
-                    }
-                }
-                if (!empty($data[$key])) {
-                    $value = $data[$key];
-                    $this->ingest($relation->isMany() ? $value : [$value], $relation->to());
-                }
-            }
-        }
-    }
-
     public function resolve($collection, $model)
     {
+        $this->_ingest($collection, $model);
         $this->_fetchData();
         $definition = $model::definition();
         $result = [];
@@ -65,6 +41,31 @@ class Cid
             $result[] = $data;
         }
         return $result;
+    }
+
+    protected function _ingest($collection, $model)
+    {
+        $definition = $model::definition();
+        $relations = [];
+        foreach ($definition->relations() as $name) {
+            $relations[$name] = $definition->relation($name);
+        }
+        foreach ($collection as $data) {
+            foreach ($relations as $key => $relation) {
+                $to = $relation->to();
+                if ($relation->type() === 'belongsTo') {
+                    if (!empty($data[$key . 'Cid'])) {
+                        $this->_store[$to][$data[$key . 'Cid']] = null;
+                    } elseif (!empty($data[$key . '_cid'])) {
+                        $this->_store[$to][$data[$key . '_cid']] = null;
+                    }
+                }
+                if (!empty($data[$key])) {
+                    $value = $data[$key];
+                    $this->_ingest($relation->isMany() ? $value : [$value], $relation->to());
+                }
+            }
+        }
     }
 
     protected function _fetchData()

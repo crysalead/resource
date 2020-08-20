@@ -79,7 +79,11 @@ trait JsonApiHandlers
         $conditions = $this->_fetchingConditions($model, $request);
         $query = $model::find(compact('conditions') + $this->_paging($request));
         $q = $request->query();
-        $query->fetchOptions(['return' => isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN) ? 'array' : 'entity']);
+        $raw = isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN);
+        if ($raw && !empty($q['include'])) {
+            throw new ResourceException("The `raw` parameter is not compatible with the `include` parameter as query parameters.", 422);
+        }
+        $query->fetchOptions(['return' => $raw ? 'array' : 'entity']);
         return [[null, $query, $this->_query($request)]];
     }
 
@@ -144,7 +148,7 @@ trait JsonApiHandlers
             }
         } elseif ($mime === 'application/vnd.api+json') {
             $payload = Payload::parse($body);
-            $collection = $payload->export(null, $model);
+            $collection = $payload->export(null);
             $keys = $payload->keys();
         } else {
             throw new ResourceException("Unsupported `{$mime}` mime type for CRUD operation.", 422);
@@ -174,14 +178,17 @@ trait JsonApiHandlers
             throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`(s) in payload.", 404);
         }
 
+        $resolver = new CidResolver();
+        $collection = $resolver->resolve($collection, $model);
+
         foreach ($collection as $data) {
             $id = $data[$key] ?? null;
             if (isset($entityById[$id])) {
-                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $data, $payload];
+                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $model::create($data, ['exists' => true]), $payload];
             } elseif ($method === 'POST' || $method === 'PUT') {
                 $instance = $model::create($data);
                 $class = $instance->self();
-                $list[] = ['add', $class::create(), $data, $payload];
+                $list[] = ['add', $class::create(), $model::create($data), $payload];
             } else {
                 throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`s in payload use POST or PUT to create new resource(s).", 404);
             }
@@ -215,11 +222,15 @@ trait JsonApiHandlers
         } elseif ($mime === 'application/vnd.api+json') {
             $payload = $request->get();
             $payload = Payload::parse($request->body());
-            $collection = $payload->export(null, $model);
+            $collection = $payload->export(null);
             $collection = $collection ?: [];
         } else {
             $collection = [$request->get()];
         }
+
+        $resolver = new CidResolver();
+        $collection = $resolver->resolve($collection, $model);
+
         foreach ($collection as $data) {
                 $list[] = [null, $model, $data, null];
         }
