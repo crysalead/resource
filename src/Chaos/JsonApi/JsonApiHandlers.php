@@ -2,6 +2,7 @@
 namespace Lead\Resource\Chaos\JsonApi;
 
 use IteratorAggregate;
+use ArrayIterator;
 use Chaos\ORM\Collection;
 use Lead\Resource\ResourceException;
 use Lead\Resource\Chaos\JsonApi\Payload;
@@ -367,6 +368,9 @@ trait JsonApiHandlers
             $query = $resource;
             $fetchOptions = $query->fetchOptions();
             $resource = $query->getIterator();
+            if ($resource instanceof ArrayIterator && $query->statement()->data('limit')) {
+                $this->_meta['count'] = $query->count();
+            }
             $params = $this->request->params();
             if (isset($params['id'])) {
                 if (!$resource = $resource->rewind()) {
@@ -375,20 +379,7 @@ trait JsonApiHandlers
                 }
             }
             if ($fetchOptions['return'] === 'array') {
-                $schema = $query->schema();
-                $key = $schema->key();
-                $data = [];
                 $resource = iterator_to_array($resource);
-                foreach ($resource as $value) {
-                    $id = $value[$key] ?? null;
-                    unset($value[$key]);
-                    $data[] = [
-                        'id' => $id,
-                        'exists' => true,
-                        'attributes' => $value
-                    ];
-                }
-                $resource = $data;
             }
         }
         return $resource;

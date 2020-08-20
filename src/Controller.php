@@ -41,6 +41,13 @@ class Controller
     protected $_formats = true;
 
     /**
+     * Associative array of variables to be sent as meta.
+     *
+     * @var array
+     */
+    protected $_meta = [];
+
+    /**
      * Associative array of variables to be sent to the view.
      *
      * @see Resource::data()
@@ -400,6 +407,20 @@ class Controller
     }
 
     /**
+     * Gets/sets the `'meta'` property.
+     *
+     * @return array
+     */
+    public function meta($meta = [])
+    {
+        if (!func_num_args()) {
+            return $this->_meta;
+        }
+        $this->_meta = $meta;
+        return $this;
+    }
+
+    /**
      * Gets sets view data.
      *
      * @param  array      $data Sets of `<variable name> => <variable value>` to pass to view layer.
@@ -574,10 +595,18 @@ class Controller
         if (!empty($options['status'])) {
             $this->response->status($options['status']);
         }
+        $meta = $this->meta();
+        $binding = $this->binding();
+        $options['meta'] = $meta;
+        $options['model'] = $binding;
         $this->response->set($resource, [], $options);
 
-        if (!isset($this->response->headers['Vary'])) {
-            $this->response->headers['Vary'] = ['Accept', 'Accept-Encoding'];
+        $headers = $this->response->headers();
+        if (isset($meta['count'])) {
+            $headers['X-Total-Count'] = $meta['count'];
+        }
+        if (!isset($headers['Vary'])) {
+            $headers['Vary'] = ['Accept', 'Accept-Encoding'];
         }
     }
 
