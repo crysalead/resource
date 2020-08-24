@@ -150,7 +150,8 @@ class Payload
                     return $data;
                 }
                 return $model::create($data, $options);
-            }
+            },
+            'type' => 'entity'
         ];
 
         $config += $defaults;
@@ -169,6 +170,7 @@ class Payload
         $this->_link = $config['link'];
         $this->_importer = $config['importer'];
         $this->_exporter = $config['exporter'];
+        $this->_isCollection = $config['type'] === 'set';
 
         $this->jsonapi($config['data']['jsonapi']);
         $this->meta($config['data']['meta']);

@@ -259,9 +259,11 @@ class Controller
 
         if (count($resources) === 1) {
             $this->_data[$name] = reset($this->_data[$name]);
+            $isBulk = isset($resources[0]);
             $resource = reset($resources);
         } else {
             $resource = $this->_collection($resources);
+            $isBulk = true;
         }
 
         $status = $this->status() ? $this->status() : $status;
@@ -279,7 +281,7 @@ class Controller
             'layout'      => $this->_layout,
             'errors'      => $errors,
             'data'        => $this->data(),
-            'bulk'        => count($resources) > 1
+            'bulk'        => $isBulk
         ];
 
         $this->_render($resource, $options);
