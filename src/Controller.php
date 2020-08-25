@@ -259,8 +259,8 @@ class Controller
 
         if (count($resources) === 1) {
             $this->_data[$name] = reset($this->_data[$name]);
-            $isBulk = isset($resources[0]);
             $resource = reset($resources);
+            $isBulk = $this->_isBulk($resource);
         } else {
             $resource = $this->_collection($resources);
             $isBulk = true;

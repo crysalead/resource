@@ -3,7 +3,8 @@ namespace Lead\Resource\Chaos\JsonApi;
 
 use IteratorAggregate;
 use ArrayIterator;
-use Chaos\ORM\Collection;
+use Chaos\ORM\Document;
+use Chaos\ORM\Collection\Collection;
 use Lead\Resource\ResourceException;
 use Lead\Resource\Chaos\JsonApi\Payload;
 
@@ -47,7 +48,7 @@ trait JsonApiHandlers
     protected function _state($resource)
     {
         $handlers = [
-            'Chaos\ORM\Collection' => function($resource) {
+            'Chaos\ORM\Collection\Collection' => function($resource) {
                 return ['exists' => true, 'valid' => true];
             },
             'Chaos\ORM\Model' => function($resource) {
@@ -409,5 +410,16 @@ trait JsonApiHandlers
         }
         $binding = $this->binding();
         return $binding::create($resources, ['type' => 'set']);
+    }
+
+    /**
+     * Check bulk data
+     *
+     * @param  mixed   $resource The resource to check.
+     * @return boolean
+     */
+    protected function _isBulk($resource)
+    {
+        return !$resource instanceof Document;
     }
 }
