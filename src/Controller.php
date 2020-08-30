@@ -226,42 +226,51 @@ class Controller
         $this->_negociateRequest($request, $action);
         $this->_negociateResponse($request, $response, $action);
 
-        if (!is_callable([$this, $action])) {
-            $name = $this->name();
-            throw new ResourceException("The `{$name}` resource does not handle `{$action}` requests.", 405);
-        }
-
-        $controller = $this->name();
-        $name = lcfirst($controller);
-
+        $isBulk = false;
         $success = true;
         $status = 499;
         $errors = [];
+        $resource = null;
         $resources = [];
 
-        foreach ($this->args($action, $request) as $args) {
-            try {
-                $transitionName = array_shift($args);
-                $status = $this->_run($action, $args, $args[0], $transitionName);
-                $resources[] = $args[0];
+        try {
 
-                if (count($resources) > 1 && $method === 'GET') {
-                    throw new ResourceException("Bluk actions are not available through GET queries.");
-                }
-            } catch (Throwable $e) {
-                $success = false;
-                $errors[] = $e;
-                $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499);
+            if (!is_callable([$this, $action])) {
+                $name = $this->name();
+                throw new ResourceException("The `{$name}` resource does not handle `{$action}` requests.", 405);
             }
-        }
 
-        if (count($resources) === 1) {
-            $this->_data[$name] = reset($this->_data[$name]);
-            $resource = reset($resources);
-            $isBulk = $this->_isBulk($resource);
-        } else {
-            $resource = $this->_collection($resources);
-            $isBulk = true;
+            $controller = $this->name();
+            $name = lcfirst($controller);
+
+            foreach ($this->args($action, $request) as $args) {
+                try {
+                    $transitionName = array_shift($args);
+                    $status = $this->_run($action, $args, $args[0], $transitionName);
+                    $resources[] = $args[0];
+
+                    if (count($resources) > 1 && $method === 'GET') {
+                        throw new ResourceException("Bluk actions are not available through GET queries.");
+                    }
+                } catch (Throwable $e) {
+                    $success = false;
+                    $errors[] = $e;
+                    $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499);
+                }
+            }
+
+            if (count($resources) === 1) {
+                $this->_data[$name] = reset($this->_data[$name]);
+                $resource = reset($resources);
+                $isBulk = $this->_isBulk($resource);
+            } else {
+                $resource = $this->_collection($resources);
+                $isBulk = true;
+            }
+        } catch (Throwable $e) {
+            $success = false;
+            $errors[] = $e;
+            $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499);
         }
 
         $status = $this->status() ? $this->status() : $status;
