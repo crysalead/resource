@@ -131,67 +131,66 @@ trait JsonApiHandlers
         $model = $options['binding'];
         $method = $request->method();
         $mime = $request->mime();
-        $definition = $model::definition();
-        $key = $definition->key();
-        $collection = [];
-        $body = $request->body();
         $payload = null;
 
         if ($mime === 'application/json') {
-            $data = $request->get();
+            $body = $request->body();
             $isArray = isset($body[0]) && $body[0] === '[';
-            $collection = $isArray ? $data : ($data ? [$data] : []);
-            $keys = [];
-            foreach ($collection as $data) {
-                if (!empty($data[$key])) {
-                    $keys[] = $data[$key];
-                }
-            }
+            $collection = $request->get();
+            $collection = $isArray ? $collection : ($collection ? [$collection] : []);
         } elseif ($mime === 'application/vnd.api+json') {
-            $payload = Payload::parse($body);
+            $payload = Payload::parse($request->body(), $this->_key);
             $collection = $payload->export(null);
-            $keys = $payload->keys();
         } else {
-            throw new ResourceException("Unsupported `{$mime}` mime type for CRUD operation.", 422);
+            $collection = $request->get();
         }
 
         if (!$collection) {
             throw new ResourceException("No data provided for `{$this->name()}` resource(s), nothing to process.", 422);
         }
 
+        $keys = [];
+        foreach ($collection as $data) {
+            if (!empty($data[$this->_key])) {
+                $keys[] = $data[$this->_key];
+            }
+        }
+
         $entityById = [];
 
         if ($method !== 'POST' && $keys) {
-            $conditions[$key] = $keys;
+            $conditions[$this->_key] = $keys;
             $query = $model::find(compact('conditions'));
             $data = $query->all();
             foreach ($data as $entity) {
-                $entityById[$entity[$key]] = $entity;
+                $entityById[$entity[$this->_key]] = $entity;
             }
             if ($data->count() !== count($keys)) {
                 $missingKeys = join(', ', array_diff($keys, array_keys($entityById)));
-                throw new ResourceException("No `{$this->name()}` resource(s) found in database with `" . strtoupper($key) . "`s `[{$missingKeys}]`, aborting.", 404);
+                throw new ResourceException("No `{$this->name()}` resource(s) found in database with `" . strtoupper($this->_key) . "`s `[{$missingKeys}]`, aborting.", 404);
             }
             if ($method !== 'PUT' && $data->count() !== count($collection)) {
-                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`s in payload use POST or PUT to create new resource(s).", 404);
+                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`s in payload use POST or PUT to create new resource(s).", 404);
             }
         } elseif ($method === 'PATCH' || $method === 'DELETE') {
-            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`(s) in payload.", 404);
+            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`(s) in payload.", 404);
         }
 
+        $definition = $model::definition();
+        $key = $definition->key();
         $resolver = new CidResolver();
         $collection = $resolver->resolve($collection, $model);
 
         foreach ($collection as $data) {
-            $id = $data[$key] ?? null;
+            $id = $data[$this->_key] ?? null;
             if (isset($entityById[$id])) {
-                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $model::create($data, ['exists' => true]), $payload];
+                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true]), $payload];
             } elseif ($method === 'POST' || $method === 'PUT') {
                 $instance = $model::create($data);
                 $class = $instance->self();
                 $list[] = ['add', $class::create(), $model::create($data), $payload];
             } else {
-                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($key) . "`s in payload use POST or PUT to create new resource(s).", 404);
+                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`s in payload use POST or PUT to create new resource(s).", 404);
             }
         }
         return $list;
@@ -222,7 +221,7 @@ trait JsonApiHandlers
             $collection = $isArray ? $payload : [$payload];
         } elseif ($mime === 'application/vnd.api+json') {
             $payload = $request->get();
-            $payload = Payload::parse($request->body());
+            $payload = Payload::parse($request->body(), $this->_key);
             $collection = $payload->export(null);
             $collection = $collection ?: [];
         } else {

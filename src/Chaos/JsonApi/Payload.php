@@ -190,10 +190,10 @@ class Payload
      */
     protected function _store($data)
     {
-        if (!isset($data['id'])) {
+        if (!isset($data[$this->_key])) {
             return;
         }
-        $id = $data['id'];
+        $id = $data[$this->_key];
         $type = $data['type'];
         $attributes = isset($data['attributes']) ? $data['attributes'] : [];
         $key = isset($this->_keys[$type]) ? $this->_keys[$type] : $this->_key;
@@ -522,8 +522,8 @@ class Payload
             $type = isset($data['type']) ? $data['type'] : null;
             $key = isset($this->_keys[$type]) ? $this->_keys[$type] : $this->_key;
 
-            if (isset($data['id'])) {
-                $result = [$key => $data['id']];
+            if (isset($data[$this->_key])) {
+                $result = [$key => $data[$this->_key]];
             } else {
                 $result = [];
             }
@@ -561,12 +561,12 @@ class Payload
         $schema = $model ? $model::definition() : null;
         foreach ($collection as $data) {
             $options['exists'] = !empty($data['exists']);
-            if (isset($data['id'])) {
-                if (!isset($this->_store[$data['type']][$data['id']])) {
+            if (isset($data[$this->_key])) {
+                if (!isset($this->_store[$data['type']][$data[$this->_key]])) {
                     continue;
                 }
-                $result = $this->_store[$data['type']][$data['id']];
-                $relationships = isset($this->_relationships[$data['type']][$data['id']]) ? $this->_relationships[$data['type']][$data['id']] : [];
+                $result = $this->_store[$data['type']][$data[$this->_key]];
+                $relationships = isset($this->_relationships[$data['type']][$data[$this->_key]]) ? $this->_relationships[$data['type']][$data[$this->_key]] : [];
             } else {
                 $result = isset($data['attributes']) ? $data['attributes'] : [];
                 $relationships = isset($data['relationships']) ? $data['relationships'] : [];
@@ -645,8 +645,8 @@ class Payload
         }
         $this->_data = $data;
         foreach ($data as $key => $value) {
-            if (isset($value['id'])) {
-                $this->_indexed[$value['id']] = $key;
+            if (isset($value[$this->_key])) {
+                $this->_indexed[$value[$this->_key]] = $key;
             }
         }
         return $this;
@@ -689,8 +689,8 @@ class Payload
                 continue;
             }
             $type = $value['type'];
-            if (isset($value['id']) && isset($this->_relationships[$type][$value['id']])) {
-                $embedded[$key] = $this->_embedded($this->_relationships[$type][$value['id']]);
+            if (isset($value[$this->_key]) && isset($this->_relationships[$type][$value[$this->_key]])) {
+                $embedded[$key] = $this->_embedded($this->_relationships[$type][$value[$this->_key]]);
             } elseif (isset($value['relationships'])) {
                 $embedded[$key] = $this->_embedded($value['relationships']);
             }

@@ -33,14 +33,6 @@ class Controller
     public $response = null;
 
     /**
-     * The format to use for rendering response. If `true` Performs a Content-Type negotiation
-     * with the request to find the best matching type.
-     *
-     * @var string
-     */
-    protected $_formats = true;
-
-    /**
      * Associative array of variables to be sent as meta.
      *
      * @var array
@@ -223,10 +215,16 @@ class Controller
         $this->request = $request;
         $this->response = $response;
 
+        $q = $request->query();
+        if (isset($q['key']) && $q['key'] === 'cid') {
+            $this->_key = 'cid';
+        }
+
         $method = $request->method();
         $action = $this->_action($method, $request->params());
 
-        $this->_format($request, $response, $action);
+        $this->_negociateRequest($request, $action);
+        $this->_negociateResponse($request, $response, $action);
 
         if (!is_callable([$this, $action])) {
             $name = $this->name();
@@ -290,57 +288,111 @@ class Controller
     }
 
     /**
-     * Formats the response according the invoked action.
+     * The format to use for processing the request. Performs a Content-Type negotiation
+     * with the request to find the best matching type.
+     *
+     * @var string
+     */
+    protected function _inputs()
+    {
+        return [];
+    }
+
+    /**
+     * The format to use for rendering response. Performs an Accept negotiation
+     * with the request to find the best matching type.
+     *
+     * @var string
+     */
+    protected function _outputs()
+    {
+        return [];
+    }
+
+    /**
+     * Formats the request according the invoked action.
      * Performs a content negotiation with the request if the applicable format is `true`;
      *
      * @param object $request  A request instance.
+     * @param string $action   The action name.
+     */
+    protected function _negociateRequest($request, $action)
+    {
+        $inputs = $this->_inputs();
+        if (isset($inputs[$action])) {
+            $input = $inputs[$action];
+        } elseif (isset($inputs[0])) {
+            $input = $inputs[0];
+        } else {
+            $input = true;
+        }
+
+        if (!$request->body()) {
+            return;
+        }
+        if ($input === true) {
+            $request->negotiate();
+        } else {
+            $inputs = is_array($input) ? $input : [$input];
+            $mime = $request->mime();
+            $supportedMimes = [];
+            foreach ($inputs as $format) {
+                $supportedMimes[$format] = Media::mime($format);
+            }
+            if ($format = array_search($mime, $supportedMimes)) {
+                $request->format($format);
+                return;
+            }
+            $supportedMimes = join(', ', $supportedMimes);
+            throw new ResourceException("Unsupported `{$mime}` Content-Type, it only `{$supportedMimes}` are supported.", 422);
+        }
+    }
+
+    /**
+     * Formats the response according the invoked action.
+     * Performs a content negotiation with the response if the applicable format is `true`;
+     *
      * @param object $response A response instance.
      * @param string $action   The action name.
      */
-    protected function _format($request, $response, $action)
+    protected function _negociateResponse($request, $response, $action)
     {
-        if (!is_array($this->_formats)) {
-            $format = $this->_formats;
-        } elseif (isset($this->_formats[$action])) {
-            $format = $this->_formats[$action];
-        } elseif (isset($this->_formats[0])) {
-            $format = $this->_formats[0];
+        $outputs = $this->_outputs();
+        if (isset($outputs[$action])) {
+            $output = $outputs[$action];
+        } elseif (isset($outputs[0])) {
+            $output = $outputs[0];
         } else {
-            $format = true;
-        }
-        if (is_array($format)) {
-            list($requestFormat, $responseFormat) = $format;
-        } else {
-            $requestFormat = $format;
-            $responseFormat = $format;
+            $output = true;
         }
 
-        if ($requestFormat === true) {
-            $request->negotiate();
-        } else {
-            $mime = $request->mime();
-            $requestMime = Media::mime($requestFormat);
-            if ($request->body() && $requestMime !== $mime) {
-                throw new ResourceException("Unsupported `{$mime}` Content-Type, it requires a `{$requestMime}` content.", 422);
-            }
-            $request->format($requestFormat);
-        }
-        if ($responseFormat === true) {
+        if ($output === true) {
             $response->negotiate($request);
         } else {
-            $responseMime = Media::mime($responseFormat);
+            $outputs = is_array($output) ? $output : [$output];
+            if (!$request->hasHeader('Accept')) {
+                $response->format(reset($outputs));
+                return;
+            }
+            $supportedMimes = [];
+            foreach ($outputs as $format) {
+                $supportedMimes[$format] = Media::mime($format);
+            }
             foreach ($request->accepts() as $mime => $value) {
-                if (Media::suitable($request, $responseMime)) {
-                    $response->format($responseFormat);
+                if ($mime === '*/*') {
+                    $response->format(reset($outputs));
+                    return;
+                } elseif ($format = Media::suitable($request, $mime, $outputs)) {
+                    $response->format($format);
                     return;
                 }
             }
-            $mimes = [];
             foreach ($request->accepts() as $mime => $value) {
                 $mimes[] = $mime;
             }
             $mimes = join(', ', $mimes);
-            throw new ResourceException("Unsupported `{$mimes}` Accept types, it requires a `{$responseMime}` response.", 422);
+            $supportedMimes = join(', ', $supportedMimes);
+            throw new ResourceException("Unsupported `{$mimes}` as Accept header, supported mimes are `{$supportedMimes}`.", 422);
         }
     }
 

@@ -3,13 +3,27 @@ namespace Lead\Resource\Spec\Fixture\Controller;
 
 use Lead\Resource\Chaos\JsonApi\JsonApiHandlers;
 
-class Controller extends \Lead\Resource\Controller
+class AssetController extends \Lead\Resource\Controller
 {
     use JsonApiHandlers;
 
+    protected function _inputs() {
+        return [
+            ['json', 'json-api', 'csv']
+        ];
+    }
+
+    protected function _outputs() {
+        return [
+            ['json', 'json-api', 'csv'],
+            'view'  => ['json', 'json-api', 'csv'],
+            'index' => ['json', 'json-api', 'csv']
+        ];
+    }
+
     public function binding()
     {
-        return 'Lead\Resource\Spec\Fixture\Model\\' . $this->name();
+        return 'Lead\Resource\Spec\Fixture\Model\Image';
     }
 
     public function index($query, $args)
@@ -30,9 +44,5 @@ class Controller extends \Lead\Resource\Controller
     public function delete($resource)
     {
         return $resource->delete();
-    }
-
-    public function _render($data, $options = []) {
-        $this->response = $options;
     }
 }
