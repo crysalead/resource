@@ -230,6 +230,7 @@ class Controller
         $success = true;
         $status = 499;
         $errors = [];
+        $validationErrors = [];
         $resource = null;
         $resources = [];
 
@@ -247,7 +248,14 @@ class Controller
                 try {
                     $transitionName = array_shift($args);
                     $status = $this->_run($action, $args, $args[0], $transitionName);
-                    $resources[] = $args[0];
+                    $resource = $args[0];
+                    $resources[] = $resource;
+
+                    if ($status === 422 && $this->_isDocument($resource)) {
+                        $validationErrors[] = $resource->errors(['embed' => true]);
+                    } else {
+                        $validationErrors[] = null;
+                    }
 
                     if (count($resources) > 1 && $method === 'GET') {
                         throw new ResourceException("Bluk actions are not available through GET queries.");
@@ -276,6 +284,15 @@ class Controller
         $status = $this->status() ? $this->status() : $status;
 
         $classname = get_called_class();
+
+        if (array_filter($validationErrors)) {
+            $errors[] = [
+                'status' => '422',
+                'code'   => 422,
+                'title'  => 'Validation Error',
+                'data'   => $validationErrors
+            ];
+        }
 
         $options = [
             'response'    => $response,

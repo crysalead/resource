@@ -412,6 +412,17 @@ trait JsonApiHandlers
     }
 
     /**
+     * Check document data
+     *
+     * @param  mixed   $resource The resource to check.
+     * @return boolean
+     */
+    protected function _isDocument($resource)
+    {
+        return $resource instanceof Document;
+    }
+
+    /**
      * Check bulk data
      *
      * @param  mixed   $resource The resource to check.
@@ -419,6 +430,6 @@ trait JsonApiHandlers
      */
     protected function _isBulk($resource)
     {
-        return !$resource instanceof Document;
+        return is_array($resource) ? !$resource || isset($resource[0]) : !$resource instanceof Document;
     }
 }
