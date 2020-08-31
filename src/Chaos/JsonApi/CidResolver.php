@@ -1,6 +1,8 @@
 <?php
 namespace Lead\Resource\Chaos\JsonApi;
 
+use Lead\Resource\ResourceException;
+
 class CidResolver
 {
     /**
@@ -82,6 +84,12 @@ class CidResolver
             $key = $definition->key();
             foreach ($data as $value) {
                 $this->_store[$model][$value['cid']] = $value[$key];
+            }
+            foreach ($this->_store[$model] as $cid => $id) {
+                if ($id === null) {
+                    $name = basename(str_replace('\\', '/', $model));
+                    throw new ResourceException("No `{$name}` resource(s) found with value `{$cid}` as `cid`.", 404);
+                }
             }
         }
     }
