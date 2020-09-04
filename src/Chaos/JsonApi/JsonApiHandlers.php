@@ -74,7 +74,7 @@ trait JsonApiHandlers
      * @param  array  $options An options array.
      * @return array
      */
-    protected function _index($request, $options)
+    protected function _index($request, $options, &$validationErrors = [])
     {
         $model = $options['binding'];
         $conditions = $this->_fetchingConditions($model, $request);
@@ -97,7 +97,7 @@ trait JsonApiHandlers
      * @param  array  $options An options array.
      * @return array
      */
-    protected function _view($request, $options)
+    protected function _view($request, $options, &$validationErrors = [])
     {
         $model = $options['binding'];
         $conditions = $this->_fetchingConditions($model, $request);
@@ -126,12 +126,13 @@ trait JsonApiHandlers
      * @param  array  $options An options array.
      * @return array
      */
-    protected function _operation($request, $options)
+    protected function _operation($request, $options, &$validationErrors = [])
     {
         $model = $options['binding'];
         $method = $request->method();
         $mime = $request->mime();
         $payload = null;
+        $list = [];
 
         if ($mime === 'application/json') {
             $body = $request->body();
@@ -150,10 +151,19 @@ trait JsonApiHandlers
         }
 
         $keys = [];
-        foreach ($collection as $data) {
+        $errorFound = false;
+        foreach ($collection as $i => $data) {
             if (!empty($data[$this->_key])) {
                 $keys[] = $data[$this->_key];
+                $validationErrors[$i] = null;
+            } elseif ($method !== 'POST') {
+                $validationErrors[$i] = [$this->_key => ["Missing `{$this->name()}` resource(s) `" . $this->_key . "`s in payload use POST or PUT to create new resource(s)."]];
+                $errorFound = true;
             }
+        }
+
+        if ($errorFound) {
+            return [];
         }
 
         $entityById = [];
@@ -165,33 +175,45 @@ trait JsonApiHandlers
             foreach ($data as $entity) {
                 $entityById[$entity[$this->_key]] = $entity;
             }
-            if ($data->count() !== count($keys)) {
-                $missingKeys = join(', ', array_diff($keys, array_keys($entityById)));
-                throw new ResourceException("No `{$this->name()}` resource(s) found in database with `" . strtoupper($this->_key) . "`s `[{$missingKeys}]`, aborting.", 404);
+            $errorFound = false;
+            foreach ($collection as $i => $data) {
+                $id = $data[$this->_key] ?? null;
+                $validationErrors[$i] = null;
+                if (!isset($entityById[$id]) && $method !== 'POST' && $method !== 'PUT') {
+                    $validationErrors[$i] = [$this->_key => ["No `{$this->name()}` resource(s) found in database with `" . $this->_key . "`s `[{$id}]`, aborting."]];
+                    $errorFound = true;
+                }
             }
-            if ($method !== 'PUT' && $data->count() !== count($collection)) {
-                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`s in payload use POST or PUT to create new resource(s).", 404);
+            if ($errorFound) {
+                return [];
             }
         } elseif ($method === 'PATCH' || $method === 'DELETE') {
-            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`(s) in payload.", 404);
+            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . $this->_key . "`(s) in payload.", 404);
         }
 
         $definition = $model::definition();
         $key = $definition->key();
         $resolver = new CidResolver();
-        $collection = $resolver->resolve($collection, $model);
+        $collection = $resolver->resolve($collection, $model, $validationErrors);
 
-        foreach ($collection as $data) {
+        if (array_filter($validationErrors)) {
+            return [];
+        }
+
+        $errorFound = false;
+        foreach ($collection as $i => $data) {
             $id = $data[$this->_key] ?? null;
+            $validationErrors[$i] = null;
             if (isset($entityById[$id])) {
                 $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true]), $payload];
-            } elseif ($method === 'POST' || $method === 'PUT') {
+            } else {
                 $instance = $model::create($data);
                 $class = $instance->self();
                 $list[] = ['add', $class::create(), $model::create($data), $payload];
-            } else {
-                throw new ResourceException("Missing `{$this->name()}` resource(s) `" . strtoupper($this->_key) . "`s in payload use POST or PUT to create new resource(s).", 404);
             }
+        }
+        if ($errorFound) {
+            return [];
         }
         return $list;
     }
@@ -205,7 +227,7 @@ trait JsonApiHandlers
      * @param  array  $options An options array.
      * @return array
      */
-    protected function _process($request, $options)
+    protected function _process($request, $options, &$validationErrors = [])
     {
         $model = $options['binding'];
         $method = $request->method();
@@ -229,10 +251,14 @@ trait JsonApiHandlers
         }
 
         $resolver = new CidResolver();
-        $collection = $resolver->resolve($collection, $model);
+        $collection = $resolver->resolve($collection, $model, $validationErrors);
+
+        if (array_filter($validationErrors)) {
+            return [];
+        }
 
         foreach ($collection as $data) {
-                $list[] = [null, $model, $data, null];
+            $list[] = [null, $model, $data, null];
         }
         return $list;
     }

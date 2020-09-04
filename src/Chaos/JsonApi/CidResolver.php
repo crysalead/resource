@@ -12,7 +12,7 @@ class CidResolver
      */
     protected $_store = [];
 
-    public function resolve($collection, $model)
+    public function resolve($collection, $model, &$validationErrors = [])
     {
         $this->_ingest($collection, $model);
         $this->_fetchData();
@@ -22,15 +22,28 @@ class CidResolver
         foreach ($definition->relations() as $name) {
             $relations[$name] = $definition->relation($name);
         }
-        foreach ($collection as $data) {
+        foreach ($collection as $i => $data) {
+            $validationErrors[$i] = null;
             foreach ($relations as $key => $relation) {
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {
                     if (!empty($data[$key . 'Cid'])) {
-                        $data[$key . 'Id'] = $this->_store[$to][$data[$key . 'Cid']];
+                        $cid = $data[$key . 'Cid'];
+                        $id = $this->_store[$to][$cid];
+                        if ($id === null) {
+                            $name = basename(str_replace('\\', '/', $to));
+                            $validationErrors[$i] = [$key . 'Cid' => ["No `{$name}` resource(s) found with value `{$cid}` as `cid`."]];
+                        }
+                        $data[$key . 'Id'] = $id;
                         unset($data[$key . 'Cid']);
                     } elseif (!empty($data[$key . '_cid'])) {
-                        $data[$key . '_id'] = $this->_store[$to][$data[$key . '_cid']];
+                        $cid = $data[$key . '_cid'];
+                        $id = $this->_store[$to][$cid];
+                        if ($id === null) {
+                            $name = basename(str_replace('\\', '/', $to));
+                            $validationErrors[$i] = [$key . '_cid' => ["No `{$name}` resource(s) found with value `{$cid}` as `cid`."]];
+                        }
+                        $data[$key . '_id'] = $id;
                         unset($data[$key . '_cid']);
                     }
                 }
@@ -84,12 +97,6 @@ class CidResolver
             $key = $definition->key();
             foreach ($data as $value) {
                 $this->_store[$model][$value['cid']] = $value[$key];
-            }
-            foreach ($this->_store[$model] as $cid => $id) {
-                if ($id === null) {
-                    $name = basename(str_replace('\\', '/', $model));
-                    throw new ResourceException("No `{$name}` resource(s) found with value `{$cid}` as `cid`.", 404);
-                }
             }
         }
     }

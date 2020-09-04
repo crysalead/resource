@@ -244,7 +244,9 @@ class Controller
             $controller = $this->name();
             $name = lcfirst($controller);
 
-            foreach ($this->args($action, $request) as $args) {
+            $argsList = $this->args($action, $request, $validationErrors);
+
+            foreach ($argsList as $args) {
                 try {
                     $transitionName = array_shift($args);
                     $status = $this->_run($action, $args, $args[0], $transitionName);
@@ -288,8 +290,7 @@ class Controller
         if (array_filter($validationErrors)) {
             $errors[] = [
                 'status' => '422',
-                'code'   => 422,
-                'title'  => 'Validation Error',
+                'title'  => 'Unprocessable Entity',
                 'data'   => $validationErrors
             ];
         }
@@ -540,7 +541,7 @@ class Controller
      * @param  object $requet The Request instance.
      * @return object         The action method resource argument.
      */
-    public function args($action, $request)
+    public function args($action, $request, &$validationErrors = [])
     {
         $required = !empty($request->params['id']);
 
@@ -572,7 +573,7 @@ class Controller
             yield [null, $binding, $method === 'GET' ? $request->query() : $request->get()];
             return;
         }
-        foreach (call_user_func($handler, $request, $options) as $args) {
+        foreach (call_user_func_array($handler, [$request, $options, &$validationErrors]) as $args) {
             yield $args;
         }
     }
