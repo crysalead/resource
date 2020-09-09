@@ -246,7 +246,7 @@ class Controller
 
             $argsList = $this->args($action, $request, $validationErrors);
 
-            foreach ($argsList as $args) {
+            foreach ($argsList as $i => $args) {
                 try {
                     $transitionName = array_shift($args);
                     $status = $this->_run($action, $args, $args[0], $transitionName);
@@ -254,9 +254,9 @@ class Controller
                     $resources[] = $resource;
 
                     if ($status === 422 && $this->_isDocument($resource)) {
-                        $validationErrors[] = $resource->errors(['embed' => true]);
+                        $validationErrors[$i] = $resource->errors(['embed' => true]);
                     } else {
-                        $validationErrors[] = null;
+                        $validationErrors[$i] = null;
                     }
 
                     if (count($resources) > 1 && $method === 'GET') {
