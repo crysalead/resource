@@ -449,12 +449,12 @@ trait JsonApiHandlers
     }
 
     /**
-     * Check bulk data
+     * Check set data
      *
      * @param  mixed   $resource The resource to check.
      * @return boolean
      */
-    protected function _isBulk($resource)
+    protected function _isSet($resource)
     {
         return is_array($resource) ? !$resource || isset($resource[0]) : !$resource instanceof Document;
     }

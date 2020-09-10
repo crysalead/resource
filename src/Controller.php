@@ -226,7 +226,7 @@ class Controller
         $this->_negociateRequest($request, $action);
         $this->_negociateResponse($request, $response, $action);
 
-        $isBulk = false;
+        $isSet = false;
         $success = true;
         $status = 499;
         $errors = [];
@@ -272,10 +272,10 @@ class Controller
             if (count($resources) === 1) {
                 $this->_data[$name] = reset($this->_data[$name]);
                 $resource = reset($resources);
-                $isBulk = $this->_isBulk($resource);
+                $isSet = $this->_isSet($resource);
             } else {
                 $resource = $this->_collection($resources);
-                $isBulk = true;
+                $isSet = true;
             }
         } catch (Throwable $e) {
             $success = false;
@@ -306,7 +306,7 @@ class Controller
             'layout'      => $this->_layout,
             'errors'      => $errors,
             'data'        => $this->data(),
-            'bulk'        => $isBulk
+            'set'         => $isSet
         ];
 
         $this->_render($resource, $options);
