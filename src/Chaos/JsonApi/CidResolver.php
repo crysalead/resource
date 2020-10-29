@@ -27,7 +27,7 @@ class CidResolver
             foreach ($relations as $key => $relation) {
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {
-                    if (!empty($data[$key . 'Cid'])) {
+                    if (isset($data[$key . 'Cid'])) {
                         $cid = $data[$key . 'Cid'];
                         $id = $this->_store[$to][$cid];
                         if ($id === null) {
@@ -36,7 +36,7 @@ class CidResolver
                         }
                         $data[$key . 'Id'] = $id;
                         unset($data[$key . 'Cid']);
-                    } elseif (!empty($data[$key . '_cid'])) {
+                    } elseif (isset($data[$key . '_cid'])) {
                         $cid = $data[$key . '_cid'];
                         $id = $this->_store[$to][$cid];
                         if ($id === null) {
@@ -69,9 +69,9 @@ class CidResolver
             foreach ($relations as $key => $relation) {
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {
-                    if (!empty($data[$key . 'Cid'])) {
+                    if (isset($data[$key . 'Cid'])) {
                         $this->_store[$to][$data[$key . 'Cid']] = null;
-                    } elseif (!empty($data[$key . '_cid'])) {
+                    } elseif (isset($data[$key . '_cid'])) {
                         $this->_store[$to][$data[$key . '_cid']] = null;
                     }
                 }

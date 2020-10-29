@@ -1,6 +1,6 @@
 # Resource - Resource Dispatching Strategy
 
-[![Build Status](https://travis-ci.org/crysalead/resource.svg?branch=master)](https://travis-ci.org/crysalead/resource)
+[![Build Status](https://travis-ci.com/crysalead/resource.svg?branch=master)](https://travis-ci.com/crysalead/resource)
 [![Code Coverage](https://scrutinizer-ci.com/g/crysalead/resource/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/crysalead/resource/)
 
 Resource dispatching strategy for [router](https://github.com/crysalead/router).
