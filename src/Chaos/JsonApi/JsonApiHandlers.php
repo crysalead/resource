@@ -205,7 +205,7 @@ trait JsonApiHandlers
             $id = $data[$this->_key] ?? null;
             $validationErrors[$i] = null;
             if (isset($entityById[$id])) {
-                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true]), $payload];
+                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true, 'defaults' => false]), $payload];
             } else {
                 $instance = $model::create($data);
                 $class = $instance->self();
