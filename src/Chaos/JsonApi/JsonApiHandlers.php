@@ -79,13 +79,14 @@ trait JsonApiHandlers
         $model = $options['binding'];
         $conditions = $this->_fetchingConditions($model, $request);
         $query = $model::find(compact('conditions') + $this->_paging($request));
-        $q = $request->query();
+        $method = $request->method();
+        $q = $method === 'FETCH' ? $request->get() : $request->query();
         $raw = isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN);
         if ($raw && !empty($q['include'])) {
             throw new ResourceException("The `raw` parameter is not compatible with the `include` parameter as query parameters.", 422);
         }
         $query->fetchOptions(['return' => $raw ? 'array' : 'entity']);
-        return [[null, $query, $this->_query($request)]];
+        return [[null, $query, $this->_query($q)]];
     }
 
     /**
@@ -111,8 +112,10 @@ trait JsonApiHandlers
             $keys = join(', ', $conditions[$this->_key]);
             throw new ResourceException("No `{$this->name()}` resource(s) found with value `{$keys}` as `" . $this->_key . "`, nothing to process.", 404);
         }
+        $method = $request->method();
+        $q = $method === 'FETCH' ? $request->get() : $request->query();
         foreach ($collection as $entity) {
-            $list[] = [null, $entity, $this->_query($request)];
+            $list[] = [null, $entity, $this->_query($q)];
         }
         return $list;
     }
@@ -349,10 +352,9 @@ trait JsonApiHandlers
      * @param  array  $request The request.
      * @return array           The query array.
      */
-    protected function _query($request)
+    protected function _query($q)
     {
-        $query = ['filter' => [], 'include' => []];
-        $q = $request->query();
+        $query = $q + ['filter' => [], 'include' => []];
 
         if (isset($q['include'])) {
             $query['include'] = array_map('trim', explode(',', $q['include']));

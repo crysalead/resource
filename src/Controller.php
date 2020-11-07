@@ -98,6 +98,7 @@ class Controller
      * @var array
      */
     protected $_methods = [
+        'FETCH'  => ['view'   => true, 'index' => null],
         'GET'    => ['view'   => true, 'index' => null],
         'POST'   => ['edit'   => null],
         'PUT'    => ['edit'   => null],
