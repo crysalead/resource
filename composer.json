@@ -9,7 +9,7 @@
         }
     ],
     "require": {
-        "php": ">=5.5",
+        "php": ">=7.1",
         "crysalead/chaos-orm": "dev-master",
         "crysalead/inflector": "^2.0",
         "crysalead/net": "dev-master",
@@ -19,7 +19,7 @@
     },
     "require-dev": {
         "crysalead/chaos-database": "dev-master",
-        "kahlan/kahlan": "~4.7"
+        "kahlan/kahlan": "~5"
     },
     "autoload": {
         "psr-4": {
