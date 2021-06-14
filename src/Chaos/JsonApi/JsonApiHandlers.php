@@ -140,13 +140,13 @@ trait JsonApiHandlers
         if ($mime === 'application/json') {
             $body = $request->body();
             $isArray = isset($body[0]) && $body[0] === '[';
-            $collection = $request->get();
+            $collection = $request->get(['model' => $model]);
             $collection = $isArray ? $collection : ($collection ? [$collection] : []);
         } elseif ($mime === 'application/vnd.api+json') {
             $payload = Payload::parse($request->body(), $this->_key);
             $collection = $payload->export(null);
         } else {
-            $collection = $request->get();
+            $collection = $request->get(['model' => $model]);
         }
 
         if (!$collection) {
@@ -154,19 +154,14 @@ trait JsonApiHandlers
         }
 
         $keys = [];
-        $errorFound = false;
+
         foreach ($collection as $i => $data) {
             if (!empty($data[$this->_key])) {
                 $keys[] = $data[$this->_key];
-                $validationErrors[$i] = null;
+                $validationErrors[$i] = $validationErrors[$i] ?? null;
             } elseif ($method !== 'POST') {
-                $validationErrors[$i] = [$this->_key => ["Missing `{$this->name()}` resource(s) `" . $this->_key . "`s in payload use POST or PUT to create new resource(s)."]];
-                $errorFound = true;
+                $validationErrors[$i] = $validationErrors[$i] ?? [$this->_key => ["Missing `{$this->name()}` resource(s) `" . $this->_key . "`s in payload use POST or PUT to create new resource(s)."]];
             }
-        }
-
-        if ($errorFound) {
-            return [];
         }
 
         $entityById = [];
@@ -178,17 +173,11 @@ trait JsonApiHandlers
             foreach ($data as $entity) {
                 $entityById[$entity[$this->_key]] = $entity;
             }
-            $errorFound = false;
             foreach ($collection as $i => $data) {
                 $id = $data[$this->_key] ?? null;
-                $validationErrors[$i] = null;
                 if (!isset($entityById[$id]) && $method !== 'POST' && $method !== 'PUT') {
-                    $validationErrors[$i] = [$this->_key => ["No `{$this->name()}` resource(s) found in database with `" . $this->_key . "`s `[{$id}]`, aborting."]];
-                    $errorFound = true;
+                    $validationErrors[$i] = $validationErrors[$i] ?? [$this->_key => ["No `{$this->name()}` resource(s) found in database with `" . $this->_key . "`s `[{$id}]`, aborting."]];
                 }
-            }
-            if ($errorFound) {
-                return [];
             }
         } elseif ($method === 'PATCH' || $method === 'DELETE') {
             throw new ResourceException("Missing `{$this->name()}` resource(s) `" . $this->_key . "`(s) in payload.", 404);
@@ -199,14 +188,8 @@ trait JsonApiHandlers
         $resolver = new CidResolver();
         $collection = $resolver->resolve($collection, $model, $validationErrors);
 
-        if (array_filter($validationErrors)) {
-            return [];
-        }
-
-        $errorFound = false;
         foreach ($collection as $i => $data) {
             $id = $data[$this->_key] ?? null;
-            $validationErrors[$i] = null;
             if (isset($entityById[$id])) {
                 $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true, 'defaults' => false]), $payload];
             } else {
@@ -214,9 +197,6 @@ trait JsonApiHandlers
                 $class = $instance->self();
                 $list[] = ['add', $class::create(), $model::create($data), $payload];
             }
-        }
-        if ($errorFound) {
-            return [];
         }
         return $list;
     }

@@ -229,35 +229,37 @@ class Controller
 
         $isSet = false;
         $success = true;
-        $status = 499;
         $errors = [];
         $validationErrors = [];
-        $resource = null;
         $resources = [];
 
+        $controller = $this->name();
+        $name = lcfirst($controller);
+
         try {
-
-            if (!is_callable([$this, $action])) {
-                $name = $this->name();
-                throw new ResourceException("The `{$name}` resource does not handle `{$action}` requests.", 405);
-            }
-
-            $controller = $this->name();
-            $name = lcfirst($controller);
-
             $argsList = $this->args($action, $request, $validationErrors);
 
             foreach ($argsList as $i => $args) {
-                try {
-                    $transitionName = array_shift($args);
-                    $status = $this->_run($action, $args, $args[0], $transitionName);
-                    $resource = $args[0];
-                    $resources[] = $resource;
 
-                    if ($status === 422 && $this->_isDocument($resource)) {
-                        $validationErrors[$i] = $resource->errors(['embed' => true]);
+                $resource = null;
+                $status = 499;
+
+                try {
+                    if (empty($validationErrors[$i])) {
+                        $transitionName = array_shift($args);
+                        $status = $this->_run($action, $args, $args[0], $transitionName);
+                        $resource = $args[0];
+                        $resources[] = $resource;
+                    }
+
+                    if (!empty($validationErrors[$i]) || ($status === 422 && $this->_isDocument($resource))) {
+                        $errors[$i] = [
+                            'status' => '422',
+                            'title'  => 'Unprocessable Entity',
+                            'data'   => $validationErrors[$i] ?? $resource->errors(['embed' => true])
+                        ];
                     } else {
-                        $validationErrors[$i] = null;
+                        $errors[$i] = null;
                     }
 
                     if (count($resources) > 1 && $method === 'GET') {
@@ -265,7 +267,7 @@ class Controller
                     }
                 } catch (Throwable $e) {
                     $success = false;
-                    $errors[] = $e;
+                    $errors[$i] = $e;
                     $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499);
                 }
             }
@@ -280,7 +282,7 @@ class Controller
             }
         } catch (Throwable $e) {
             $success = false;
-            $errors[] = $e;
+            $errors = [$e];
             $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499);
         }
 
@@ -288,12 +290,8 @@ class Controller
 
         $classname = get_called_class();
 
-        if (array_filter($validationErrors)) {
-            $errors[] = [
-                'status' => '422',
-                'title'  => 'Unprocessable Entity',
-                'data'   => $validationErrors
-            ];
+        if (!array_filter($errors)) {
+            $errors = [];
         }
 
         $options = [
@@ -466,24 +464,26 @@ class Controller
      */
     protected function _action($method, $params = [])
     {
+        $controller = $this->name();
         if (empty($params['action'])) {
-            foreach ($this->_methods[$method] as $action => $value) {
-                if ($value === true && isset($params['id'])) {
+            if (!empty($this->_methods[$method])) {
+                foreach ($this->_methods[$method] as $action => $value) {
+                    if ($value === true && isset($params['id'])) {
+                        return $action;
+                    }
+                    $value = (array) $value;
+                    if (array_intersect($value, array_keys($params)) !== $value) {
+                        continue;
+                    }
                     return $action;
                 }
-                $value = (array) $value;
-                if (array_intersect($value, array_keys($params)) !== $value) {
-                    continue;
-                }
-                return $action;
             }
-            throw new ResourceException("The `{$name}` resource could not process the request because the parameters are invalid.");
+            throw new ResourceException("The `{$controller}` resource does not support `{$method}` as HTTP method.");
         }
         $action = $params['action'];
         $methods = array_diff(get_class_methods($this), get_class_methods(__CLASS__));
         if (!in_array($action, $methods) || strpos($action, '_') === 0) {
-            $name = $this->name();
-            throw new ResourceException("The `{$name}` resource doesn't understand how to do `{$action}`.");
+            throw new ResourceException("The `{$controller}` resource does not handle the `{$action}` action.", 405);
         }
         return $action;
     }
@@ -571,12 +571,9 @@ class Controller
 
         $method = $request->method();
         if (!$handler) {
-            yield [null, $binding, $method === 'GET' ? $request->query() : $request->get()];
-            return;
+            return [[null, $binding, $method === 'GET' ? $request->query() : $request->get()]];
         }
-        foreach (call_user_func_array($handler, [$request, $options, &$validationErrors]) as $args) {
-            yield $args;
-        }
+        return $handler($request, $options, $validationErrors);
     }
 
     /**

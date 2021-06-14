@@ -21,4 +21,14 @@ class Image extends BaseModel
 
         $schema->hasManyThrough('tags', 'images_tags', 'tag');
     }
+
+    /**
+     * Validation rules definition.
+     *
+     * @param object $validator A blank validator instance.
+     */
+    protected static function _rules($validator)
+    {
+        $validator->rule('name', ['not:empty']);
+    }
 }

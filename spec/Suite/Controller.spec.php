@@ -27,9 +27,27 @@ $box = \Kahlan\box('resource.spec');
 
 $connection = $box->get('source.database.sqlite');
 
-describe("Controller", function() use ($connection) {
+$serializeError = function($e) {
+    if ($e === null) {
+        return;
+    }
+    if (is_array($e)) {
+        $e += [
+            'status' => '500',
+            'title'  => 'Internal Server Error'
+        ];
+        return $e;
+    }
+    $errorStatus = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499;
+    return [
+        'status' => (string) $errorStatus,
+        'title'  => $e->getMessage()
+    ];
+};
 
-    beforeAll(function() {
+describe("Controller", function() use ($connection, $serializeError) {
+
+    beforeAll(function() use ($serializeError) {
 
         $this->router = new Router();
         $this->router->strategy('resource', new ResourceStrategy());
@@ -78,29 +96,34 @@ describe("Controller", function() use ($connection) {
         ]);
 
         Media::set('json', ['application/json'], [
-            'encode' => function($data, $options = [], $response = null) {
+            'encode' => function($resource, $options = [], $response = null) use ($serializeError) {
                 $defaults = [
                     'depth' => 512,
                     'flag'  => 0
                 ];
                 $options += $defaults;
-                if (!empty($options['errors'])) {
-                    $e = reset($options['errors']);
-                    $errorCode = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499;
-                    $data = [
-                        'error' => [
-                            'code'  => $errorCode,
-                            'title' => $e->getMessage(),
-                            'file'  => $e->getFile() . "({$e->getLine()})",
-                            'trace' => explode("\n", $e->getTraceAsString())
-                        ]
-                    ];
-                    if ($response) {
-                        $response->status($errorCode);
-                    }
-                }
-                $result = json_encode($data, $options['flag'], $options['depth']);
 
+                if (!empty($options['errors'])) {
+                    $errors = [];
+                    $errorStatus = 500;
+                    foreach ($options['errors'] as $e) {
+                        $serializedError = $serializeError($e);
+                        $errors[] = $serializedError;
+                    }
+                    if (count($errors) === 1) {
+                        $errorStatus = $errors[0]['status'];
+                    }
+                    $data = ['errors' => $errors];
+                    if ($response) {
+                        $response->status($errorStatus);
+                    }
+                } elseif ($resource instanceof Model || $resource instanceof Collection || $resource instanceof Through) {
+                    $data = $resource->data();
+                } else {
+                    $data = $resource;
+                }
+
+                $result = json_encode($data, $options['flag'], $options['depth']);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     throw new InvalidArgumentException(json_last_error_msg());
                 }
@@ -126,27 +149,31 @@ describe("Controller", function() use ($connection) {
 
         Media::set('json-api', ['application/vnd.api+json'], [
             'cast'   => false,
-            'encode' => function($resource, $options, $response) use ($router) {
-                $serializeError = function($e) {
-                    $errorCode = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499;
-                    return [
-                        'status' => (string) $errorCode,
-                        'code'   => (int) $errorCode,
-                        'title'  => $e->getMessage(),
-                        'file'   => $e->getFile() . "({$e->getLine()})",
-                        'trace'  => explode("\n", $e->getTraceAsString())
-                    ];
-                };
+            'encode' => function($resource, $options, $response) use ($router, $serializeError) {
                 try {
                     $payload = new Payload([
                         'link' => [$router, 'link'],
                         'exporter' => function($entity) {
                             return $entity->to('array', ['embed' => false]);
                         },
-                        'type' => empty($options['bulk']) ? 'entity' : 'set'
+                        'type' => empty($options['set']) ? 'entity' : 'set'
                     ]);
 
-                    if (is_array($resource)) {
+                    if (!empty($options['errors'])) {
+                        $errors = [];
+                        $errorStatus = 500;
+                        foreach ($options['errors'] as $e) {
+                            $serializedError = $serializeError($e);
+                            $errors[] = $serializedError;
+                        }
+                        if (count($errors) === 1) {
+                            $errorStatus = $errors[0]['status'];
+                        }
+                        $payload->errors($errors);
+                        if ($response) {
+                            $response->status($errorStatus);
+                        }
+                    } elseif (is_array($resource)) {
                         // Hack to support raw data fetching, doesn't support the include parameter.
                         if (!empty($options['model'])) {
                             $model = $options['model'];
@@ -154,7 +181,7 @@ describe("Controller", function() use ($connection) {
                             $type = Inflector::camelize($schema->source());
                             $key = $schema->key();
 
-                            $data = [];
+                            $result = [];
                             foreach ($resource as $value) {
                                 $id = $value[$key] ?? null;
                                 unset($value[$key]);
@@ -164,14 +191,14 @@ describe("Controller", function() use ($connection) {
                                         unset($value[$k]);
                                     }
                                 }
-                                $data[] = [
+                                $result[] = [
                                     'type' => $type,
                                     'id' => $id,
                                     'exists' => true,
                                     'attributes' => $value
                                 ];
                             }
-                            $resource = $data;
+                            $resource = $result;
                         }
                         $payload->data($resource);
                         if (!empty($options['meta'])) {
@@ -180,24 +207,11 @@ describe("Controller", function() use ($connection) {
                     } elseif ($resource instanceof Model || $resource instanceof Collection || $resource instanceof Through) {
                         $payload->set($resource, ['embed' => true]); // `true` because we trust what we loaded through the controller.
                     }
-                    if (!empty($options['errors'])) {
-                        $errors = [];
-                        $errorCode = 500;
-                        foreach ($options['errors'] as $e) {
-                            $serializedError = $serializeError($e);
-                            $errors[] = $serializedError;
-                            $errorCode = $serializedError['code'];
-                        }
-                        $payload->errors($errors);
-                        if ($response) {
-                            $response->status($errorCode);
-                        }
-                    }
                     $json = $payload->serialize();
                 } catch(Throwable $e) {
                     $serializedError = $serializeError($e);
                     $json = ['errors' => [$serializedError]];
-                    $response->status($serializedError['code']);
+                    $response->status($serializedError['status']);
                 }
                 return Media::encode('json', $json);
             },
@@ -215,52 +229,94 @@ describe("Controller", function() use ($connection) {
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     throw new InvalidArgumentException(json_last_error_msg());
                 }
-                $key = $_GET['key'] ?? null;
-                $payload = Payload::parse($result, $key === 'cid' ? 'cid' : 'id');
-                return $payload->export(null);
+                // Hack to get the query string key value.
+                // $key = $_GET['key'] ?? null;
+                // $payload = Payload::parse($result, $key === 'cid' ? 'cid' : 'id');
+                // return $payload->export(null);
+
+                return $result;
             }
         ]);
 
         Media::set('csv', ['text/csv'], [
-            'encode' => function($data, $options = [], $response = null) {
+            'encode' => function($resource, $options = [], $response = null) use ($serializeError) {
                 $defaults = [
                     'depth' => 512,
                     'flag'  => 0
                 ];
                 $options += $defaults;
-                if (!empty($options['errors'])) {
-                    $e = reset($options['errors']);
-                    $errorCode = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499;
-                    $data = [
-                        'error' => $e->getMessage(),
-                        'code'  => $errorCode,
-                        'file'  => $e->getFile() . "({$e->getLine()})"
-                    ];
-                    if ($response) {
-                        $response->status($errorCode);
-                    }
-                }
 
                 $result = '';
-                if (!$data) {
-                    return $result;
-                }
+                $errors = $options['errors'] ?? [];
 
-                $data = isset($data[0]) ? $data : [$data];
-                $template = reset($data);
+                if (!$errors) {
+                    if ($resource instanceof Model || $resource instanceof Collection || $resource instanceof Through) {
+                        $data = $resource->data();
+                    } else {
+                        $data = $resource;
+                    }
+                    $data = isset($data[0]) || !$data ? $data : [$data];
 
-                // Hack to handle false as 0 instead of an empty string
-                foreach ($data as $key => $value) {
-                    foreach ($value as $k => $v) {
-                        if ($v === false) {
-                            $data[$key][$k] = '0';
+                    // Hack to handle false as 0 instead of an empty string
+                    foreach ($data as $key => $value) {
+                        foreach ($value as $k => $v) {
+                            if ($v === false) {
+                                $data[$key][$k] = '0';
+                            }
+                            if (is_array($v)) {
+                                $data[$key][$k] = json_encode($v);
+                            }
                         }
                     }
+
+                    $template = reset($data);
+                    $checkKeys = $template ? array_keys($template) : [];
+
+                    if (isset($options['model'])) {
+                        $columns = $options['model']::definition()->columns(true);
+                        $keys = [];
+                        foreach ($columns as $name => $field) {
+                            if (!empty($field['virtual']) || !empty($field['private'])) {
+                                continue;
+                            }
+                            $keys[] = $name;
+                        }
+                    } elseif(isset($options['fields'])) {
+                        $keys = $options['fields'];
+                    }
+
+                    // It's a additional check to make sure default fields match exported data fields
+                    if (($checkKeys && $checkKeys !== $keys) || !$keys) {
+                        $errors = [[
+                            'status' => '500',
+                            'title'  => 'Internal Error, Invalid Schema Definition.'
+                        ]];
+                    }
                 }
 
-                $keys = array_keys($template);
+                if ($errors) {
+                    $data = [];
+                    $errorStatus = 500;
+                    foreach ($errors as $e) {
+                        $serializedError = $serializeError($e);
+                        if (isset($serializedError['data'])) {
+                            $serializedError['data'] = json_encode($serializedError['data']);
+                        }
+                        if (isset($serializedError['trace'])) {
+                            $serializedError['trace'] = json_encode($serializedError['trace']);
+                        }
+                        $data[] = $serializedError;
+                    }
+                    if (count($data) === 1) {
+                        $errorStatus = $data[0]['status'];
+                    }
+                    if ($response) {
+                        $response->status($errorStatus);
+                    }
+                    $template = reset($data);
+                    $keys = array_keys($template);
+                }
 
-                $result = '';
                 $fp = fopen('php://temp', 'r+b');
 
                 try {
@@ -279,13 +335,30 @@ describe("Controller", function() use ($connection) {
                 return $result;
             },
             'decode' => function($data, $options = []) {
+                $schema = !empty($options['model']) ? $options['model']::definition() : null;
+
                 $data = str_getcsv($data, "\n"); //parse the rows
                 foreach ($data as $key => $value) {
                     $data[$key] = str_getcsv($value, ';');
                 }
 
-                array_walk($data, function(&$a) use ($data) {
-                  $a = array_combine($data[0], $a);
+                array_walk($data, function(&$a) use ($data, $schema) {
+                    $a = array_combine($data[0], $a);
+                    if (!$schema) {
+                        return;
+                    }
+                    foreach($a as $fieldName => $value) {
+                        if ($value === '') {
+                            if ($schema->has($fieldName)) {
+                                $column = $schema->column($fieldName);
+                            } elseif (substr($fieldName, -3) === 'Cid' || substr($fieldName, -4) === '_cid') {
+                                $column = ['null' => true];
+                            } else {
+                                 $column = ['null' => false];
+                            }
+                            $a[$fieldName] = empty($column['null']) ? '' : null;
+                        }
+                    }
                 });
                 array_shift($data);
                 return $data;
@@ -525,10 +598,125 @@ describe("Controller", function() use ($connection) {
             ],
             'body' => "cid;gallery_id;name;title\nA2600;1;amiga_2600.jpg;Amiga 2600\nA2700;1;amiga_2700.jpg;Amiga 2700"
         ]);
+
         $route = $r->route($request, 'POST');
 
         $route->dispatch($this->response);
         expect($this->response->body())->toBe("id;cid;gallery_id;name;title\n6;A2600;1;amiga_2600.jpg;\"Amiga 2600\"\n7;A2700;1;amiga_2700.jpg;\"Amiga 2700\"\n");
+    });
+
+    it("throws an exception when trying to use an unsupported HTTP method", function() {
+
+        $this->fixtures->populate('image');
+
+        $r = $this->router;
+        $request = new Request([
+            'path'   => 'asset/1',
+            'method' => 'INVALID',
+            'headers' => [
+                'Accept' => 'application/octet-stream'
+            ]
+        ]);
+        $route = $r->route($request, 'GET');
+
+        $closure = function() use ($route) {
+            $route->dispatch($this->response);
+        };
+
+        expect($closure)->toThrow(new ResourceException('The `Asset` resource does not support `INVALID` as HTTP method.', 499));
+
+    });
+
+    it("throws an exception when trying to use an unsupported HTTP method", function() {
+
+        $this->fixtures->populate('image');
+
+        $r = $this->router;
+        $request = new Request([
+            'path'   => 'asset/:invalid',
+            'method' => 'INVALID',
+            'headers' => [
+                'Accept' => 'application/octet-stream'
+            ]
+        ]);
+        $route = $r->route($request, 'GET');
+
+        $closure = function() use ($route) {
+            $route->dispatch($this->response);
+        };
+
+        expect($closure)->toThrow(new ResourceException('The `Asset` resource does not handle the `invalid` action.', 405));
+
+    });
+
+    it("returns missing id errors in response payload for PUT queries", function() {
+
+        $this->fixtures->populate('image');
+
+        $r = $this->router;
+        $request = new Request([
+            'path'   => 'asset',
+            'method' => 'PUT',
+            'headers' => [
+                'Accept' => 'application/vnd.api+json',
+                'Content-Type' => 'text/csv'
+            ],
+            'body' => "cid;gallery_id;name;title\nA2600;1;amiga_2600.jpg;Amiga 2600\nA2700;1;amiga_2700.jpg;Amiga 2700"
+        ]);
+        $route = $r->route($request, 'PUT');
+
+        $route->dispatch($this->response);
+        expect($this->response->get())->toBe([
+            'errors' => [
+                [
+                    'status' => '422',
+                    'title' => 'Unprocessable Entity',
+                    'data' => [
+                        'id' => ['Missing `Asset` resource(s) `id`s in payload use POST or PUT to create new resource(s).']
+                    ]
+                ],
+                [
+                    'status' => '422',
+                    'title' => 'Unprocessable Entity',
+                    'data' => [
+                        'id' => ['Missing `Asset` resource(s) `id`s in payload use POST or PUT to create new resource(s).']
+                    ]
+                ]
+            ]
+        ]);
+
+    });
+
+    it("returns validation errors in response payload", function() {
+
+        $this->fixtures->populate('image');
+
+        $r = $this->router;
+        $request = new Request([
+            'path'   => 'asset',
+            'method' => 'POST',
+            'headers' => [
+                'Accept' => 'application/vnd.api+json',
+                'Content-Type' => 'text/csv'
+            ],
+            'body' => "cid;gallery_id;name;title\nA2600;1;;Amiga 2600\nA2700;1;amiga_2700.jpg;Amiga 2700"
+        ]);
+        $route = $r->route($request, 'POST');
+
+        $route->dispatch($this->response);
+        expect($this->response->get())->toBe([
+            'errors' => [
+                [
+                    'status' => '422',
+                    'title' => 'Unprocessable Entity',
+                    'data' => [
+                        'name' => ['must not be a empty']
+                    ]
+                ],
+                null
+            ]
+        ]);
+
     });
 
 });
