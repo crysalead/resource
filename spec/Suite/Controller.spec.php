@@ -719,4 +719,32 @@ describe("Controller", function() use ($connection, $serializeError) {
 
     });
 
+    it("returns an error when the request payload is empty", function() {
+
+        $this->fixtures->populate('image');
+
+        $r = $this->router;
+        $request = new Request([
+            'path'   => 'asset',
+            'method' => 'POST',
+            'headers' => [
+                'Accept' => 'application/vnd.api+json',
+                'Content-Type' => 'text/csv'
+            ],
+            'body' => ""
+        ]);
+        $route = $r->route($request, 'POST');
+
+        $route->dispatch($this->response);
+        expect($this->response->get())->toBe([
+            'errors' => [
+                [
+                    'status' => '422',
+                    'title' => 'No data provided for `Asset` resource(s), nothing to process.'
+                ]
+            ]
+        ]);
+
+    });
+
 });

@@ -232,6 +232,7 @@ class Controller
         $errors = [];
         $validationErrors = [];
         $resources = [];
+        $resource = null;
 
         $controller = $this->name();
         $name = lcfirst($controller);
@@ -678,6 +679,8 @@ class Controller
         $binding = $this->binding();
         $options['meta'] = $meta;
         $options['model'] = $binding;
+        $options['request'] = $this->request;
+        $options['response'] = $this->response;
         $this->response->set($resource, [], $options);
 
         $headers = $this->response->headers();
