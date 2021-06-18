@@ -106,6 +106,8 @@ class Controller
         'DELETE' => ['delete' => null]
     ];
 
+    protected $_queryStringRules = null;
+
     /**
      * State transitions / HTTP code mapping.
      *
@@ -140,11 +142,49 @@ class Controller
     ];
 
     /**
+     * Currently processed action
+     *
+     * @var string
+     */
+    protected $_action = null;
+
+    /**
      * If set, overrides the status extracted from state transitions.
      *
      * @var integer
      */
     protected $_status = null;
+
+    /**
+     * The format to use for processing the request. Performs a Content-Type negotiation
+     * with the request to find the best matching type.
+     *
+     * @var string
+     */
+    protected function _inputs()
+    {
+        return [];
+    }
+
+    /**
+     * The format to use for rendering response. Performs an Accept negotiation
+     * with the request to find the best matching type.
+     *
+     * @var string
+     */
+    protected function _outputs()
+    {
+        return [];
+    }
+
+    /**
+     * Allowed filters by action.
+     *
+     * @return array
+     */
+    protected function _queryString($rules)
+    {
+    }
 
     /**
      * Constructor
@@ -165,6 +205,8 @@ class Controller
         $this->_suffix = $config['suffix'];
         $this->handlers($config['handlers']);
         $this->router($config['router']);
+        $this->_queryStringRules = new QueryStringRules($this);
+        $this->_queryString($this->_queryStringRules);
     }
 
     /**
@@ -216,16 +258,11 @@ class Controller
         $this->request = $request;
         $this->response = $response;
 
-        $q = $request->query();
-        if (isset($q['key']) && $q['key'] === 'cid') {
-            $this->_key = 'cid';
-        }
-
         $method = $request->method();
-        $action = $this->_action($method, $request->params());
+        $this->_action = $this->_action($method, $request->params());
 
-        $this->_negociateRequest($request, $action);
-        $this->_negociateResponse($request, $response, $action);
+        $this->_negociateRequest($request, $this->_action);
+        $this->_negociateResponse($request, $response, $this->_action);
 
         $isSet = false;
         $success = true;
@@ -233,27 +270,42 @@ class Controller
         $validationErrors = [];
         $resources = [];
         $resource = null;
+        $status = null;
 
         $controller = $this->name();
         $name = lcfirst($controller);
 
         try {
-            $argsList = $this->args($action, $request, $validationErrors);
+            $argsList = $this->args($this->_action, $request, $validationErrors);
+
+            // since $argsList may be empty make sure errors are populated
+            foreach ($validationErrors as $i => $validationError) {
+                if (!empty($validationErrors[$i])) {
+                    $status = 422;
+                    $errors[$i] = [
+                        'status' => '422',
+                        'title'  => 'Unprocessable Entity',
+                        'data'   => $validationErrors[$i]
+                    ];
+                }
+            }
 
             foreach ($argsList as $i => $args) {
-
                 $resource = null;
-                $status = 499;
 
                 try {
                     if (empty($validationErrors[$i])) {
                         $transitionName = array_shift($args);
-                        $status = $this->_run($action, $args, $args[0], $transitionName);
+                        $currentStatus = $this->_run($this->_action, $args, $args[0], $transitionName);
                         $resource = $args[0];
                         $resources[] = $resource;
+                        if ($status <= 400) {
+                            $status = $currentStatus;
+                        }
                     }
 
-                    if (!empty($validationErrors[$i]) || ($status === 422 && $this->_isDocument($resource))) {
+                    if (!empty($validationErrors[$i]) || ($currentStatus === 422 && $this->_isDocument($resource))) {
+                        $status = 422;
                         $errors[$i] = [
                             'status' => '422',
                             'title'  => 'Unprocessable Entity',
@@ -269,7 +321,7 @@ class Controller
                 } catch (Throwable $e) {
                     $success = false;
                     $errors[$i] = $e;
-                    $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499);
+                    $status = $status <= 400 ? ($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499) : $status;
                 }
             }
 
@@ -284,10 +336,20 @@ class Controller
         } catch (Throwable $e) {
             $success = false;
             $errors = [$e];
-            $this->status($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499);
+            $status = $status <= 400 ? ($e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 499) : $status;
         }
 
-        $status = $this->status() ? $this->status() : $status;
+        if (!$status && $method === 'DELETE') {
+            $status = 204;
+        }
+        if ($status && $method === 'PUT' && count($errors) > 1) {
+            $status = 200;
+        }
+
+        // If status has been overrided in controller method to not use $status value.
+        if (!$this->status() && $status) {
+            $this->status($status);
+        }
 
         $classname = get_called_class();
 
@@ -299,10 +361,10 @@ class Controller
             'response'    => $response,
             'namespace'   => substr($classname, 0, strrpos($classname, '\\')),
             'controller'  => $controller,
-            'action'      => $action,
+            'action'      => $this->_action,
             'name'        => $name,
-            'status'      => $status,
-            'template'    => $this->_template ?: strtolower($controller) . '/' . $action,
+            'status'      => $this->status(),
+            'template'    => $this->_template ?: strtolower($controller) . '/' . $this->_action,
             'layout'      => $this->_layout,
             'errors'      => $errors,
             'data'        => $this->data(),
@@ -312,28 +374,6 @@ class Controller
         $this->_render($resource, $options);
 
         return $response;
-    }
-
-    /**
-     * The format to use for processing the request. Performs a Content-Type negotiation
-     * with the request to find the best matching type.
-     *
-     * @var string
-     */
-    protected function _inputs()
-    {
-        return [];
-    }
-
-    /**
-     * The format to use for rendering response. Performs an Accept negotiation
-     * with the request to find the best matching type.
-     *
-     * @var string
-     */
-    protected function _outputs()
-    {
-        return [];
     }
 
     /**

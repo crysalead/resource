@@ -22,29 +22,36 @@ class CidResolver
         foreach ($definition->relations() as $name) {
             $relations[$name] = $definition->relation($name);
         }
+        $replacer = function($model, $oldKey, $newKey, $i, &$data, &$validationErrors) {
+            $cid = $data[$oldKey];
+            $id = $this->_store[$model][$cid];
+            if ($id === null) {
+                $name = basename(str_replace('\\', '/', $model));
+                $validationErrors[$i] = $validationErrors[$i] ?? [$oldKey => ["No `{$name}` resource(s) found with value `{$cid}` as `cid`."]];
+            }
+            $data[$newKey] = $id;
+            $definition = $model::definition();
+            if (!$definition->has($oldKey)) {
+                unset($data[$oldKey]);
+            }
+        };
+
         foreach ($collection as $i => $data) {
+            if (!isset($data['id']) && isset($data['cid'])) {
+                $cid = $data[ 'cid'];
+                $id = $this->_store[$model][$cid];
+                if ($id !== null) {
+                    $data['id'] = $id;
+                }
+            }
             $validationErrors[$i] = $validationErrors[$i] ?? null;
             foreach ($relations as $key => $relation) {
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {
                     if (isset($data[$key . 'Cid'])) {
-                        $cid = $data[$key . 'Cid'];
-                        $id = $this->_store[$to][$cid];
-                        if ($id === null) {
-                            $name = basename(str_replace('\\', '/', $to));
-                            $validationErrors[$i] = $validationErrors[$i] ?? [$key . 'Cid' => ["No `{$name}` resource(s) found with value `{$cid}` as `cid`."]];
-                        }
-                        $data[$key . 'Id'] = $id;
-                        unset($data[$key . 'Cid']);
+                        $replacer($to, $key . 'Cid', $key . 'Id', $i, $data, $validationErrors);
                     } elseif (isset($data[$key . '_cid'])) {
-                        $cid = $data[$key . '_cid'];
-                        $id = $this->_store[$to][$cid];
-                        if ($id === null) {
-                            $name = basename(str_replace('\\', '/', $to));
-                            $validationErrors[$i] = $validationErrors[$i] ?? [$key . '_cid' => ["No `{$name}` resource(s) found with value `{$cid}` as `cid`."]];
-                        }
-                        $data[$key . '_id'] = $id;
-                        unset($data[$key . '_cid']);
+                        $replacer($to, $key . '_cid', $key . '_id', $i, $data, $validationErrors);
                     }
                 }
                 if (!empty($data[$key])) {
@@ -66,6 +73,9 @@ class CidResolver
             $relations[$name] = $definition->relation($name);
         }
         foreach ($collection as $data) {
+            if (!isset($data['id']) && isset($data['cid'])) {
+                $this->_store[$model][$data['cid']] = null;
+            }
             foreach ($relations as $key => $relation) {
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {

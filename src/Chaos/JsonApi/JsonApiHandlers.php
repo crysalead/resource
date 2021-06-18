@@ -3,6 +3,7 @@ namespace Lead\Resource\Chaos\JsonApi;
 
 use IteratorAggregate;
 use ArrayIterator;
+use Lead\Set\Set;
 use Chaos\ORM\Document;
 use Chaos\ORM\Collection\Collection;
 use Lead\Resource\ResourceException;
@@ -30,11 +31,24 @@ trait JsonApiHandlers
             'actions' => [
                 'index' => [$this, '_index'],
                 'view'  => [$this, '_view'],
-                'edit'  => [$this, '_operation'],
-                'delete'  => [$this, '_operation'],
+                'edit'  => [$this, '_edit'],
+                'delete'  => [$this, '_delete'],
                 [$this, '_process']
             ]
         ];
+    }
+
+    /**
+     * Allowed filters by action.
+     *
+     * @return array
+     */
+    protected function _queryString($rules)
+    {
+        $rules->allow('index', ['filter' => [$this->_key]]);
+        $rules->allow('view', ['filter' => [$this->_key]]);
+        $rules->allow('edit', ['filter' => [$this->_key]]);
+        $rules->allow('delete', ['filter' => [$this->_key]]);
     }
 
     /**
@@ -82,11 +96,13 @@ trait JsonApiHandlers
         $method = $request->method();
         $q = $method === 'FETCH' ? $request->get() : $request->query();
         $raw = isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN);
+        unset($q['raw']);
         if ($raw && !empty($q['include'])) {
             throw new ResourceException("The `raw` parameter is not compatible with the `include` parameter as query parameters.", 422);
         }
+        $queryParameters = $this->_queryParameters($q, $model);
         $query->fetchOptions(['return' => $raw ? 'array' : 'entity']);
-        return [[null, $query, $this->_query($q)]];
+        return [[null, $query, $queryParameters]];
     }
 
     /**
@@ -114,14 +130,15 @@ trait JsonApiHandlers
         }
         $method = $request->method();
         $q = $method === 'FETCH' ? $request->get() : $request->query();
+        $queryParameters = $this->_queryParameters($q, $model);
         foreach ($collection as $entity) {
-            $list[] = [null, $entity, $this->_query($q)];
+            $list[] = [null, $entity, $queryParameters];
         }
         return $list;
     }
 
     /**
-     * Handler for generating arguments list for POST, PUT, PATCH, DELETE methods (CRUDs operations) .
+     * Handler for generating arguments list for POST, PUT, PATCH methods (CRUDs operations) .
      *
      * @see Lead\Resource\Controller::args()
      *
@@ -129,74 +146,70 @@ trait JsonApiHandlers
      * @param  array  $options An options array.
      * @return array
      */
-    protected function _operation($request, $options, &$validationErrors = [])
+    protected function _edit($request, $options, &$validationErrors = [])
     {
         $model = $options['binding'];
         $method = $request->method();
-        $mime = $request->mime();
-        $payload = null;
         $list = [];
 
-        if ($mime === 'application/json') {
-            $body = $request->body();
-            $isArray = isset($body[0]) && $body[0] === '[';
-            $collection = $request->get(['model' => $model]);
-            $collection = $isArray ? $collection : ($collection ? [$collection] : []);
-        } elseif ($mime === 'application/vnd.api+json') {
-            $payload = Payload::parse($request->body(), $this->_key);
-            $collection = $payload->export(null);
-        } else {
-            $collection = $request->get(['model' => $model]);
-        }
-
-        if (!$collection) {
-            throw new ResourceException("No data provided for `{$this->name()}` resource(s), nothing to process.", 422);
-        }
-
-        $keys = [];
-
-        foreach ($collection as $i => $data) {
-            if (!empty($data[$this->_key])) {
-                $keys[] = $data[$this->_key];
-                $validationErrors[$i] = $validationErrors[$i] ?? null;
-            } elseif ($method !== 'POST') {
-                $validationErrors[$i] = $validationErrors[$i] ?? [$this->_key => ["Missing `{$this->name()}` resource(s) `" . $this->_key . "`s in payload use POST or PUT to create new resource(s)."]];
-            }
-        }
-
-        $entityById = [];
-
-        if ($method !== 'POST' && $keys) {
-            $conditions[$this->_key] = $keys;
-            $query = $model::find(compact('conditions'));
-            $data = $query->all();
-            foreach ($data as $entity) {
-                $entityById[$entity[$this->_key]] = $entity;
-            }
-            foreach ($collection as $i => $data) {
-                $id = $data[$this->_key] ?? null;
-                if (!isset($entityById[$id]) && $method !== 'POST' && $method !== 'PUT') {
-                    $validationErrors[$i] = $validationErrors[$i] ?? [$this->_key => ["No `{$this->name()}` resource(s) found in database with `" . $this->_key . "`s `[{$id}]`, aborting."]];
-                }
-            }
-        } elseif ($method === 'PATCH' || $method === 'DELETE') {
-            throw new ResourceException("Missing `{$this->name()}` resource(s) `" . $this->_key . "`(s) in payload.", 404);
-        }
+        [$payload, $collection, $entityById] = $this->_fetchRequestData($model, $request, $validationErrors);
 
         $definition = $model::definition();
         $key = $definition->key();
-        $resolver = new CidResolver();
-        $collection = $resolver->resolve($collection, $model, $validationErrors);
 
         foreach ($collection as $i => $data) {
             $id = $data[$this->_key] ?? null;
             if (isset($entityById[$id])) {
-                $list[] = [$method === 'DELETE' ? 'delete' : 'edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true, 'defaults' => false]), $payload];
+                $list[] = ['edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true, 'defaults' => false]), $payload];
             } else {
                 $instance = $model::create($data);
                 $class = $instance->self();
                 $list[] = ['add', $class::create(), $model::create($data), $payload];
             }
+        }
+        return $list;
+    }
+
+    /**
+     * Handler for generating arguments list for DELETE methods (CRUDs operations) .
+     *
+     * @see Lead\Resource\Controller::args()
+     *
+     * @param  object $request The request instance.
+     * @param  array  $options An options array.
+     * @return array
+     */
+    protected function _delete($request, $options, &$validationErrors = [])
+    {
+        $model = $options['binding'];
+        $method = $request->method();
+        $list = [];
+        $conditions = $this->_fetchingConditions($model, $request);
+        $payload = null;
+        $entityById = [];
+        $q = $request->query();
+        $truncate = isset($q['_truncate_']) && filter_var($q['_truncate_'], FILTER_VALIDATE_BOOLEAN);
+        unset($q['_truncate_']);
+        $queryParameters = $this->_queryParameters($q, $model);
+
+        if ($conditions) {
+            foreach ($model::all(compact('conditions')) as $entity) {
+                $entityById[$entity[$this->_key]] = $entity;
+            }
+        } elseif ($request->body()) {
+            [$payload, $collection, $entityById] = $this->_fetchRequestData($model, $request, $validationErrors);
+        } else {
+            if (!$conditions && !$truncate) {
+                throw new ResourceException("No valid filters provided for `{$this->name()}` resource(s), nothing to process.", 422);
+            }
+
+            foreach ($model::all(compact('conditions')) as $entity) {
+                $entityById[$entity[$this->_key]] = $entity;
+            }
+        }
+
+        foreach ($entityById as $entity) {
+            $list[] = ['delete', $entity, $queryParameters, $payload];
         }
         return $list;
     }
@@ -233,8 +246,7 @@ trait JsonApiHandlers
             $collection = [$request->get()];
         }
 
-        $resolver = new CidResolver();
-        $collection = $resolver->resolve($collection, $model, $validationErrors);
+        $collection = $this->_resolveCid($collection, $model, $validationErrors);
 
         if (array_filter($validationErrors)) {
             return [];
@@ -244,6 +256,18 @@ trait JsonApiHandlers
             $list[] = [null, $model, $data, null];
         }
         return $list;
+    }
+
+    protected function _embedded($include)
+    {
+        $include = is_array($include) ? $include : [$include];
+        $allowed = $this->_queryStringRules->allowed($this->_action);
+        $allowedIncludes = $allowed['include'] ?? [];
+
+        if ($notAllowed = array_diff($include, $allowedIncludes)) {
+            throw new ResourceException("Resource `{$this->name()}` does not allow the following include `[" . join(',', $notAllowed) . "]`.", 422);
+        }
+        return array_intersect($allowedIncludes, $include);
     }
 
     /**
@@ -258,7 +282,9 @@ trait JsonApiHandlers
         $params = $request->params();
 
         if (isset($params['id'])) {
-            return [$this->_key => [$params['id']]];
+            $q = $request->query();
+            $key = isset($q['key']) && $q['key'] === 'cid' ? 'cid' : $this->_key;
+            return [$key => [$params['id']]];
         }
         if (!isset($params['relations'])) {
             return [];
@@ -283,9 +309,83 @@ trait JsonApiHandlers
             $id = $parts[1];
             $conditions += $this->_relatedIds($rel, $id);
         } elseif ($relations) {
-            throw new Exception('Invalid URL, only one has<One|Many|ManyThrough> relationship is allowed');
+            throw new ResourceException('Invalid URL, only one has<One|Many|ManyThrough> relationship is allowed');
         }
         return $conditions;
+    }
+
+    /**
+     * Returns the request data collection.
+     *
+     * @param  string $model            A fully namespaced model class name.
+     * @param  array  $request          The request.
+     * @param  array  $validationErrors Will contain the occured errors.
+     * @return array                    A list of resources.
+     */
+    protected function _fetchRequestData($model, $request, &$validationErrors)
+    {
+        $method = $request->method();
+        $payload = null;
+        $mime = $request->mime();
+        if ($mime === 'application/json') {
+            $body = $request->body();
+            $isArray = isset($body[0]) && $body[0] === '[';
+            $collection = $request->get(['model' => $model]);
+            $collection = $isArray ? $collection : ($collection ? [$collection] : []);
+        } elseif ($mime === 'application/vnd.api+json') {
+            $payload = Payload::parse($request->body(), $this->_key);
+            $collection = $payload->export(null);
+        } else {
+            $collection = $request->get(['model' => $model]);
+        }
+
+        if (!$collection) {
+            throw new ResourceException("Invalid request body, nothing to process.", 422);
+        }
+
+        $collection = $this->_resolveCid($collection, $model, $validationErrors);
+
+        $keys = [];
+        foreach ($collection as $i => $data) {
+            if (!empty($data[$this->_key])) {
+                $keys[] = $data[$this->_key];
+                $validationErrors[$i] = $validationErrors[$i] ?? null;
+            } elseif ($method !== 'POST' && $method !== 'PUT') {
+                $validationErrors[$i] = $validationErrors[$i] ?? [$this->_key => ["Missing `{$this->name()}` `" . $this->_key . "`s in payload use POST or PUT to create new resource(s)."]];
+            }
+        }
+
+        $entityById = [];
+
+        if ($method !== 'POST' && $keys) {
+            $conditions[$this->_key] = $keys;
+            $query = $model::find(compact('conditions'));
+            $data = $query->all();
+            foreach ($data as $entity) {
+                $entityById[$entity[$this->_key]] = $entity;
+            }
+            foreach ($collection as $i => $data) {
+                $id = $data[$this->_key] ?? null;
+                if (!isset($entityById[$id]) && $method !== 'POST' && $method !== 'PUT') {
+                    $validationErrors[$i] = $validationErrors[$i] ?? [$this->_key => ["No `{$this->name()}` resource(s) found in database with `" . $this->_key . "`s `[{$id}]`, aborting."]];
+                }
+            }
+        }
+
+        return [$payload, $collection, $entityById];
+    }
+
+    /**
+     * Resolve cid.
+     *
+     * @param  string $model            A fully namespaced model class name.
+     * @param  array  $request          The request.
+     * @param  array  $validationErrors Will contain the occured errors.
+     * @return array                    A list of resources with cid resolved.
+     */
+    protected function _resolveCid($collection, $model, &$validationErrors) {
+        $resolver = new CidResolver();
+        return $resolver->resolve($collection, $model, $validationErrors);
     }
 
     /**
@@ -332,7 +432,7 @@ trait JsonApiHandlers
      * @param  array  $request The request.
      * @return array           The query array.
      */
-    protected function _query($q)
+    protected function _queryParameters($q, $model)
     {
         $query = $q + ['filter' => [], 'include' => []];
 
@@ -341,8 +441,20 @@ trait JsonApiHandlers
         }
         if (isset($q['filter']) && is_array($q['filter'])) {
             foreach ($q['filter'] as $key => $value) {
+                if (is_array($value)) {
+                    throw new ResourceException("Invalid filter format in the query string.");
+                }
                 $query['filter'][$key] = strpos($value, ',') !== false ? array_map('trim', explode(',', $value)) : $value;
             }
+        }
+        $resolver = new CidResolver();
+        $collection = [$query['filter']];
+        $collection = $resolver->resolve($collection, $model, $validationErrors);
+        $query['filter'] = $collection[0];
+
+        $notAllowed = $this->_queryStringRules->check($this->_action, $query, ['raw', 'key', 'sort', 'page' => ['limit', 'offset'], '_truncate_']);
+        if ($notAllowed) {
+            throw new ResourceException("Resource `{$this->name()}` does not allow the following filter(s) `[" . join(',', $notAllowed) . "]`.");
         }
         return $query;
     }

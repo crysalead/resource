@@ -524,6 +524,8 @@ class Payload
 
             if (isset($data[$this->_key])) {
                 $result = [$key => $data[$this->_key]];
+            } elseif (isset($data['cid'])) {
+                $result = ['cid' => $data['cid']];
             } else {
                 $result = [];
             }
@@ -644,6 +646,7 @@ class Payload
             }
         }
         $this->_data = $data;
+
         foreach ($data as $key => $value) {
             if (isset($value[$this->_key])) {
                 $this->_indexed[$value[$this->_key]] = $key;

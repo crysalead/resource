@@ -649,7 +649,7 @@ describe("Controller", function() use ($connection, $serializeError) {
 
     });
 
-    it("returns missing id errors in response payload for PUT queries", function() {
+    it("resolves cid in payloads for PUT queries", function() {
 
         $this->fixtures->populate('image');
 
@@ -661,25 +661,39 @@ describe("Controller", function() use ($connection, $serializeError) {
                 'Accept' => 'application/vnd.api+json',
                 'Content-Type' => 'text/csv'
             ],
-            'body' => "cid;gallery_id;name;title\nA2600;1;amiga_2600.jpg;Amiga 2600\nA2700;1;amiga_2700.jpg;Amiga 2700"
+            'body' => "cid;gallery_id;name;title\nI1;1;amiga_2600.jpg;Amiga 2600\nI2;1;amiga_2700.jpg;Amiga 2700"
         ]);
         $route = $r->route($request, 'PUT');
 
         $route->dispatch($this->response);
         expect($this->response->get())->toBe([
-            'errors' => [
+            'data' => [
                 [
-                    'status' => '422',
-                    'title' => 'Unprocessable Entity',
-                    'data' => [
-                        'id' => ['Missing `Asset` resource(s) `id`s in payload use POST or PUT to create new resource(s).']
+                    'type' => 'Image',
+                    'id' => 1,
+                    'exists' => true,
+                    'attributes' => [
+                        'cid' => 'I1',
+                        'gallery_id' => 1,
+                        'name' => 'amiga_2600.jpg',
+                        'title' => 'Amiga 2600'
+                    ],
+                        'links' => [
+                        'self' => '//localhost/image/1'
                     ]
                 ],
                 [
-                    'status' => '422',
-                    'title' => 'Unprocessable Entity',
-                    'data' => [
-                        'id' => ['Missing `Asset` resource(s) `id`s in payload use POST or PUT to create new resource(s).']
+                    'type' => 'Image',
+                    'id' => 2,
+                    'exists' => true,
+                    'attributes' => [
+                        'cid' => 'I2',
+                        'gallery_id' => 1,
+                        'name' => 'amiga_2700.jpg',
+                        'title' => 'Amiga 2700'
+                    ],
+                        'links' => [
+                        'self' => '//localhost/image/2'
                     ]
                 ]
             ]
@@ -740,7 +754,7 @@ describe("Controller", function() use ($connection, $serializeError) {
             'errors' => [
                 [
                     'status' => '422',
-                    'title' => 'No data provided for `Asset` resource(s), nothing to process.'
+                    'title' => 'Invalid request body, nothing to process.'
                 ]
             ]
         ]);
