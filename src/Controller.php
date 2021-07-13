@@ -287,6 +287,8 @@ class Controller
                         'title'  => 'Unprocessable Entity',
                         'data'   => $validationErrors[$i]
                     ];
+                } else {
+                    $errors[$i] = null;
                 }
             }
 
