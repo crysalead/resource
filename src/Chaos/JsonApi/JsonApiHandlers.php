@@ -39,19 +39,6 @@ trait JsonApiHandlers
     }
 
     /**
-     * Allowed filters by action.
-     *
-     * @return array
-     */
-    protected function _queryString($rules)
-    {
-        $rules->allow('index', ['filter' => [$this->_key]]);
-        $rules->allow('view', ['filter' => [$this->_key]]);
-        $rules->allow('edit', ['filter' => [$this->_key]]);
-        $rules->allow('delete', ['filter' => [$this->_key]]);
-    }
-
-    /**
      * Handler for extracting the state of resource instances.
      *
      * @see Lead\Resource\Controller::state()
@@ -92,17 +79,22 @@ trait JsonApiHandlers
     {
         $model = $options['binding'];
         $conditions = $this->_fetchingConditions($model, $request);
-        $query = $model::find(compact('conditions') + $this->_paging($request));
-        $method = $request->method();
-        $q = $method === 'FETCH' ? $request->get() : $request->query();
+
+        $queryArgs = $this->_queryParameters($request, $model);
+        $q = $request->query();
         $raw = isset($q['raw']) && filter_var($q['raw'], FILTER_VALIDATE_BOOLEAN);
-        unset($q['raw']);
-        if ($raw && !empty($q['include'])) {
+        $raw = $raw ?: isset($queryArgs['return']) && $queryArgs['return'] === 'array';
+
+        if ($raw && !empty($queryArgs['include'])) {
             throw new ResourceException("The `raw` parameter is not compatible with the `include` parameter as query parameters.", 422);
         }
-        $queryParameters = $this->_queryParameters($q, $model);
+
+        $order = isset($q['sort']) ? $this->_sort($request) : (!empty($queryArgs['query']['order']) ? array_merge(...$queryArgs['query']['order']) : []);
+
+        $query = $model::find(compact('conditions') + $this->_paging($queryArgs));
+        $query->order($order);
         $query->fetchOptions(['return' => $raw ? 'array' : 'entity']);
-        return [[null, $query, $queryParameters]];
+        return [[null, $query, $queryArgs]];
     }
 
     /**
@@ -128,11 +120,10 @@ trait JsonApiHandlers
             $keys = join(', ', $conditions[$this->_key]);
             throw new ResourceException("No `{$this->name()}` resource(s) found with value `{$keys}` as `" . $this->_key . "`, nothing to process.", 404);
         }
-        $method = $request->method();
-        $q = $method === 'FETCH' ? $request->get() : $request->query();
-        $queryParameters = $this->_queryParameters($q, $model);
+
+        $queryArgs = $this->_queryParameters($request, $model);
         foreach ($collection as $entity) {
-            $list[] = [null, $entity, $queryParameters];
+            $list[] = [null, $entity, $queryArgs];
         }
         return $list;
     }
@@ -154,17 +145,26 @@ trait JsonApiHandlers
 
         [$payload, $collection, $entityById] = $this->_fetchRequestData($model, $request, $validationErrors);
 
+        $restricted = $this->_requestRules->restrictedValues($request->format(), $this->_action);
+        $restrictedIncludes = $restricted['data']['relationships'] ?? [];
+
+        if ($payload && $notAllowed = array_diff($payload->embedded(), $restrictedIncludes)) {
+            throw new ResourceException("Resource `{$this->name()}` does not allow the following include `[" . join(',', $notAllowed) . "]`.", 422);
+        }
+
         $definition = $model::definition();
         $key = $definition->key();
+
+        $queryArgs = $this->_queryParameters($request, $model);
 
         foreach ($collection as $i => $data) {
             $id = $data[$this->_key] ?? null;
             if (isset($entityById[$id])) {
-                $list[] = ['edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true, 'defaults' => false]), $payload];
+                $list[] = ['edit', $entityById[$id], $model::create([$key => $entityById[$id][$key]] + $data, ['exists' => true, 'defaults' => false]), $queryArgs, $payload];
             } else {
                 $instance = $model::create($data);
                 $class = $instance->self();
-                $list[] = ['add', $class::create(), $model::create($data), $payload];
+                $list[] = ['add', $class::create(), $model::create($data), $queryArgs, $payload];
             }
         }
         return $list;
@@ -187,10 +187,10 @@ trait JsonApiHandlers
         $conditions = $this->_fetchingConditions($model, $request);
         $payload = null;
         $entityById = [];
-        $q = $request->query();
-        $truncate = isset($q['_truncate_']) && filter_var($q['_truncate_'], FILTER_VALIDATE_BOOLEAN);
-        unset($q['_truncate_']);
-        $queryParameters = $this->_queryParameters($q, $model);
+
+        $queryArgs = $this->_queryParameters($request, $model);
+
+        $truncate = !empty($queryArgs['_truncate_']);
 
         if ($conditions) {
             foreach ($model::all(compact('conditions')) as $entity) {
@@ -209,7 +209,7 @@ trait JsonApiHandlers
         }
 
         foreach ($entityById as $entity) {
-            $list[] = ['delete', $entity, $queryParameters, $payload];
+            $list[] = ['delete', $entity, $queryArgs, $payload];
         }
         return $list;
     }
@@ -227,8 +227,8 @@ trait JsonApiHandlers
     {
         $model = $options['binding'];
         $method = $request->method();
-        if ($method === 'GET') {
-            return [[null, $model, $method === 'GET' ? $request->query() : $request->get()]];
+        if ($method === 'GET' || $method === 'FETCH') {
+            return [[null, $model, $this->_queryParameters($request, $model)]];
         }
         $body = $request->body();
         $mime = $request->mime();
@@ -256,18 +256,6 @@ trait JsonApiHandlers
             $list[] = [null, $model, $data, null];
         }
         return $list;
-    }
-
-    protected function _embedded($include)
-    {
-        $include = is_array($include) ? $include : [$include];
-        $allowed = $this->_queryStringRules->allowed($this->_action);
-        $allowedIncludes = $allowed['include'] ?? [];
-
-        if ($notAllowed = array_diff($include, $allowedIncludes)) {
-            throw new ResourceException("Resource `{$this->name()}` does not allow the following include `[" . join(',', $notAllowed) . "]`.", 422);
-        }
-        return array_intersect($allowedIncludes, $include);
     }
 
     /**
@@ -432,46 +420,49 @@ trait JsonApiHandlers
      * @param  array  $request The request.
      * @return array           The query array.
      */
-    protected function _queryParameters($q, $model)
+    protected function _queryParameters($request, $model)
     {
-        $query = $q + ['filter' => [], 'include' => []];
+        $method = $request->method();
+        $body = $request->body();
 
-        if (isset($q['include'])) {
-            $query['include'] = array_map('trim', explode(',', $q['include']));
+        $q = $request->query();
+
+        if (!empty($q['include'])) {
+            $q['include'] = array_map('trim', explode(',', $q['include']));
         }
-        if (isset($q['filter']) && is_array($q['filter'])) {
-            foreach ($q['filter'] as $key => $value) {
-                if (is_array($value)) {
-                    throw new ResourceException("Invalid filter format in the query string.");
-                }
-                $query['filter'][$key] = strpos($value, ',') !== false ? array_map('trim', explode(',', $value)) : $value;
+
+        if (!empty($q['filter'])) {
+            $q['filter'] = $this->_requestRules->parseFilter($q['filter'] ?: [], $model);
+        }
+
+        if (isset($q['_truncate_'])) {
+            $q['_truncate_'] = filter_var($q['_truncate_'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (!empty($q['query'])) {
+            $q['query'] = json_decode($q['query']);
+        } elseif (($method === 'GET' || $method === 'FETCH') && $body) {
+            $q += $request->get();
+            if (!empty($q['include'])) {
+                $q['query']['embed'] = $q['include'];
             }
         }
-        $resolver = new CidResolver();
-        $collection = [$query['filter']];
-        $collection = $resolver->resolve($collection, $model, $validationErrors);
-        $query['filter'] = $collection[0];
 
-        $notAllowed = $this->_queryStringRules->check($this->_action, $query, ['raw', 'key', 'sort', 'page' => ['limit', 'offset'], '_truncate_']);
-        if ($notAllowed) {
-            throw new ResourceException("Resource `{$this->name()}` does not allow the following filter(s) `[" . join(',', $notAllowed) . "]`.");
-        }
-        return $query;
+        $this->_requestRules->check($request->format(), $this->_action, $q, []);
+        return $q;
     }
 
     /**
-     * Builds the paging array from JSON-API query string.
+     * Builds the order array from JSON-API query string.
      *
      * @param  array  $request The request.
      * @return array           The query array.
      */
-    protected function _paging($request)
+    protected function _sort($request)
     {
-        $paging = [];
+        $orders = [];
         $q = $request->query();
-
         if (isset($q['sort'])) {
-            $orders = [];
             foreach (explode(',', $q['sort']) as $field) {
                 if (substr($field, 0, 1) === '-') {
                     $orders[substr($field, 1)] = 'DESC';
@@ -479,10 +470,23 @@ trait JsonApiHandlers
                     $orders[$field] = 'ASC';
                 }
             }
-            $paging['order'] = $orders;
         }
-        if (isset($q['page'])) {
-            $paging = $paging + array_intersect_key($q['page'], array_fill_keys(['limit', 'offset', 'page'], true));
+        return $orders;
+    }
+
+    /**
+     * Builds the paging array from JSON-API query string.
+     *
+     * @param  array  $queryArgs The query parameters.
+     * @return array     The query array.
+     */
+    protected function _paging($queryArgs)
+    {
+        $paging = [];
+        if (isset($queryArgs['page'])) {
+            $paging = array_intersect_key($queryArgs['page'], array_fill_keys(['limit', 'offset', 'page'], true));
+        } elseif (isset($queryArgs['query'])) {
+            $paging = array_intersect_key($queryArgs['query'], array_fill_keys(['limit', 'offset', 'page'], true));
         }
         return $paging;
     }

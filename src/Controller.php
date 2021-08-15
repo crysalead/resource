@@ -106,7 +106,7 @@ class Controller
         'DELETE' => ['delete' => null]
     ];
 
-    protected $_queryStringRules = null;
+    protected $_requestRules = null;
 
     /**
      * State transitions / HTTP code mapping.
@@ -182,7 +182,7 @@ class Controller
      *
      * @return array
      */
-    protected function _queryString($rules)
+    protected function _requestRules($rules)
     {
     }
 
@@ -205,8 +205,8 @@ class Controller
         $this->_suffix = $config['suffix'];
         $this->handlers($config['handlers']);
         $this->router($config['router']);
-        $this->_queryStringRules = new QueryStringRules($this);
-        $this->_queryString($this->_queryStringRules);
+        $this->_requestRules = new RequestRules($this);
+        $this->_requestRules($this->_requestRules);
     }
 
     /**

@@ -21,7 +21,7 @@ class Controller extends \Lead\Resource\Controller
         return $resource;
     }
 
-    public function edit($resource, $data, $payload)
+    public function edit($resource, $data, $args, $payload)
     {
         $resource->set($data->data());
         return $resource->save();
