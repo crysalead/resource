@@ -37,16 +37,15 @@ class CidUnresolver
             }
         };
 
-        foreach ($collection as $i => $data) {
+        foreach ($collection as $i => $entity) {
+            $data = $entity->data();
             unset($data[$key]);
             $validationErrors[$i] = $validationErrors[$i] ?? null;
             foreach ($relations as $key => $relation) {
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {
                     $fieldName = key($relations[$key]->keys());
-                    if (isset($data[$fieldName])) {
-                        $replacer($to, $fieldName, $key . 'Cid', $i, $data, $validationErrors);
-                    }
+                    $replacer($to, $fieldName, $key . 'Cid', $i, $data, $validationErrors);
                 }
                 if (!empty($data[$key])) {
                     $value = $data[$key];
@@ -86,6 +85,7 @@ class CidUnresolver
     protected function _fetchData()
     {
         foreach ($this->_store as $model => $ids) {
+            unset($ids['']);
             if (!$ids) {
                 continue;
             }
