@@ -25,7 +25,7 @@ class CidUnresolver
         }
         $replacer = function($model, $oldKey, $newKey, $i, &$data, &$validationErrors) {
             $id = $data[$oldKey];
-            $cid = $this->_store[$model][$id];
+            $cid = $this->_store[$model][$id] ?? null;
             if ($cid === null) {
                 $name = basename(str_replace('\\', '/', $model));
                 $validationErrors[$i] = $validationErrors[$i] ?? [$oldKey => ["No `{$name}` resource(s) found with value `{$id}` as `id`."]];
@@ -37,8 +37,7 @@ class CidUnresolver
             }
         };
 
-        foreach ($collection as $i => $entity) {
-            $data = $entity->data();
+        foreach ($collection as $i => $data) {
             unset($data[$key]);
             $validationErrors[$i] = $validationErrors[$i] ?? null;
             foreach ($relations as $key => $relation) {
