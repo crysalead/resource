@@ -24,8 +24,8 @@ class CidResolver
         }
         $replacer = function($model, $oldKey, $newKey, $i, &$data, &$validationErrors) {
             $cid = $data[$oldKey];
-            $id = $this->_store[$model][$cid];
-            if ($id === null) {
+            $id = $this->_store[$model][$cid] ?? null;
+            if ($cid && $id === null) {
                 $name = basename(str_replace('\\', '/', $model));
                 $validationErrors[$i] = $validationErrors[$i] ?? [$oldKey => ["No `{$name}` resource(s) found with value `{$cid}` as `cid`."]];
             }
@@ -48,9 +48,9 @@ class CidResolver
             foreach ($relations as $key => $relation) {
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {
-                    if (isset($data[$key . 'Cid'])) {
+                    if (array_key_exists($key . 'Cid', $data)) {
                         $replacer($to, $key . 'Cid', $key . 'Id', $i, $data, $validationErrors);
-                    } elseif (isset($data[$key . '_cid'])) {
+                    } elseif (array_key_exists($key . '_cid', $data)) {
                         $replacer($to, $key . '_cid', $key . '_id', $i, $data, $validationErrors);
                     }
                 }
