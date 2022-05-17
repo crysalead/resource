@@ -233,6 +233,7 @@ trait JsonApiHandlers
         $body = $request->body();
         $mime = $request->mime();
         $list = [];
+        $resolveCid = true;
         if ($mime === 'application/json') {
             $payload = $request->get();
             $isArray = isset($body[0]) && $body[0] === '[';
@@ -242,11 +243,16 @@ trait JsonApiHandlers
             $payload = Payload::parse($request->body(), $this->_key);
             $collection = $payload->export(null);
             $collection = $collection ?: [];
+        } elseif ($mime === 'text/csv') {
+            $collection = [$request->get()];
         } else {
             $collection = [$request->get()];
+            $resolveCid = false;
         }
 
-        $collection = $this->_resolveCid($collection, $model, $validationErrors);
+        if ($resolveCid) {
+            $collection = $this->_resolveCid($collection, $model, $validationErrors);
+        }
 
         if (array_filter($validationErrors)) {
             return [];
