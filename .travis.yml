@@ -1,12 +1,8 @@
-sudo: false
 language: php
 
 php:
-  - 7.1
-  - 7.2
-  - 7.3
   - 7.4
-  - 8.0
+  - 8.1
 
 before_script:
   - if [[ $TRAVIS_SECURE_ENV_VARS = "true" ]]; then composer config -g github-oauth.github.com $GITHUB_COMPOSER_AUTH; fi
@@ -21,4 +17,4 @@ after_success:
 
 env:
   global:
-    - secure: m8BRKwDomCXi5fcHNP2Nbsg7x40+b6Z1yIBEMDOvRXeRCHAWe7rUpdSjnhnEoxgJh3JqOe/2YsqIHlwezlcauS5tfa7vZVgj/bvW+h9PHQPxGVRb0nmuUUzgT0rQ0UhK9dbWWo+BcvW1Ol9CSeD0+LURVL12CTsBsf2AuxtJZNK85AwgkU5Ee7oUhhAW52EnxfGw/aaz2JYQJhiswIltkU7LyJMkd5hklLfxP06g8twhu2tog9C6+mZIqlPwNydqjepq1QKI6YuGVJn+/WFT4OcWlozvk7Bv9Oy2S2dDVFdZuwHGNul8n+fAQoJPFfB9SzrPVK38RoXc+GXec/Je6UoOG+PED4u2+xAh3Pezl7O+Lhakdf+aIF8yfzYpy5i+EtDF8j46TTHjvoN+/p7W+j64S7MD9aRR4/+WLsOvPGvEkSWVFxtpsFKHVa1such0gVKLyS88uIeW9rM2NFHqoOObsUxrHLxe6FEFw02NMMRns3J/Oln8YV2NLOrLbFELGyUO9BzLEHCZMZ2Kf08h+DO2Aj1iKi99urTLcGhMMQSFVtMyF+/oi3MF3C9lKRYVa9vFpyt+QY/swzrNfR5ur7nks7lvKBjDegyq8AYN0VkhAQLbyuWKgMM0xDthLYEacJv7GSWshlbUWXZvit1NXi3C74K4JlBcolsCvLrmDN4=
+    - secure: IV3svZ2jJQBA7ElFwsX8Bp+poul3BUG9LFJ/BUH2TmH1+JLdwcaL3hB+Ua2MErp0FWuRlNAm7aLrMMZYEeqFbhlRNvM7EuhzV3gmS7yJ60QpLPj72HCX6x4/+SWIDf5bK4mD78UWL2nAd/f1v8hrZEdfSPjmATOCdobRMHhMMj/HVc2UHQGeUko5a5uUsakzpuNARMeCrBRtu5ps4bnIwF9kS5yuqIeCjHDQJh9StHtf/t3umxFfEzVyD0SmdJJn/iC95xnD+Ca+EaoYElpwLC5jcbjzDF2yItcp1FYGGTYPXXNWkJ2aI3KF6L/+uvBG1uc58v/sfvK/m3i70JlIq01jE8rpFCVqM1O9zsMbzFl935RzV9v4ti9MkfWuW9fXkJJFZ+h+s2fnA3enXxkUySlh8L97DHdz7zzDzRwhz2GIflMF6vcjSBqP83N+NwYmQ/dZty5j1QsIBTqL8sa9Enz4E+oi78v9rWxXGoeYImlRgcVbrgIFlIltmbRrcPmKkRrN0M/3ulsB+UWz0V8KcvxEGBZEJCgXcT8YRSzfsD2nI7Eg41kOjyrUbApSNdD7AcU5Y2Jhue+AwP2klQeelXqrzoPlXoIp43rkiRR1Uz/7dgXXOY0RKAujIsssQ2sAYRAxMrAe9NhwJ4XtEgjI8kSq+GdKliLYz7+f6L0h5Fo=

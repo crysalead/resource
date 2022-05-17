@@ -337,9 +337,13 @@ describe("Controller", function() use ($connection, $serializeError) {
             'decode' => function($data, $options = []) {
                 $schema = !empty($options['model']) ? $options['model']::definition() : null;
 
-                $data = str_getcsv($data, "\n"); //parse the rows
-                foreach ($data as $key => $value) {
-                    $data[$key] = str_getcsv($value, ';');
+                if (trim($data)) {
+                    $data = str_getcsv($data, "\n"); //parse the rows
+                    foreach ($data as $key => $value) {
+                        $data[$key] = str_getcsv($value, ';');
+                    }
+                } else {
+                    $data = [];
                 }
 
                 array_walk($data, function(&$a) use ($data, $schema) {
