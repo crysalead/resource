@@ -44,7 +44,10 @@ class CidUnresolver
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {
                     $fieldName = key($relations[$key]->keys());
-                    $replacer($to, $fieldName, $key . 'Cid', $i, $data, $validationErrors);
+                    $definitionTo = $to::definition();
+                    if ($definitionTo->has('cid')) {
+                        $replacer($to, $fieldName, $key . 'Cid', $i, $data, $validationErrors);
+                    }
                 }
                 if (!empty($data[$key])) {
                     $value = $data[$key];
@@ -69,6 +72,10 @@ class CidUnresolver
                 $to = $relation->to();
                 if ($relation->type() === 'belongsTo') {
                     $fieldName = key($relations[$key]->keys());
+                    $definitionTo = $to::definition();
+                    if (!$definitionTo->has('cid')) {
+                        continue;
+                    }
                     if (isset($data[$fieldName])) {
                         $this->_store[$to][$data[$fieldName]] = null;
                     }
