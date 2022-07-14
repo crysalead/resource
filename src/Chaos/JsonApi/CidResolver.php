@@ -37,6 +37,10 @@ class CidResolver
         };
 
         foreach ($collection as $i => $data) {
+            if (!$data) {
+                $result[] = $data;
+                continue;
+            }
             if (!isset($data['id']) && isset($data['cid'])) {
                 $cid = $data[ 'cid'];
                 $id = $this->_store[$model][$cid];
