@@ -446,7 +446,7 @@ trait JsonApiHandlers
         }
 
         if (!empty($q['query'])) {
-            $q['query'] = json_decode($q['query']);
+            $q['query'] = json_decode($q['query'], true);
         } elseif (($method === 'GET' || $method === 'FETCH') && $body) {
             $q += $request->get();
             if (!empty($q['include'])) {
