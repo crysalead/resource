@@ -453,9 +453,27 @@ trait JsonApiHandlers
                 $q['query']['embed'] = $q['include'];
             }
         }
-
+        if (!empty($q['query']['conditions'])) {
+            $keys = $this->_arrayKeysMulti(($q['query']['conditions']));
+            foreach ($keys as $key) {
+                if ($key === ':plain') {
+                    throw new ResourceException("Resource `{$this->name()}` doesn't allow `:plain` in queries conditions.", 403);
+                }
+            }
+        }
         $this->_requestRules->check($request->format(), $this->_action, $q, []);
         return $q;
+    }
+
+    protected function _arrayKeysMulti($array) {
+        $keys = array();
+        foreach ($array as $key => $value) {
+            $keys[] = $key;
+            if (is_array($value)) {
+                $keys = array_merge($keys, $this->_arrayKeysMulti($value));
+            }
+        }
+        return $keys;
     }
 
     /**
