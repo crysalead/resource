@@ -183,6 +183,21 @@ class Payload
         }
     }
 
+    protected function _stored($entity)
+    {
+        $id = $entity->id();
+        $definition = $entity::definition();
+        $type = Inflector::camelize($definition->source());
+        if (!isset($this->_store[$type][$id])) {
+            return;
+        }
+        return [
+            'type' => $type,
+            $this->_key => $id,
+            'exists' => $id !== null
+        ];
+    }
+
     /**
      * Indexes an item according its type & id into `$_store`.
      *
@@ -302,6 +317,9 @@ class Payload
                 'title'  => "The JSON-API serializer only supports Chaos entities.",
             ]]);
             return;
+        }
+        if ($data = $this->_stored($entity)) {
+            return $data;
         }
         $definition = $entity::definition();
         $data = $this->_data($entity);
