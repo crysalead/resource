@@ -124,6 +124,11 @@ class Payload
     protected $_importer = null;
 
     /**
+     * Data exporter handler.
+     */
+    protected $_exporter = null;
+
+    /**
      * Boolean indicating if the stored data is a collection or not
      *
      * @var boolean
@@ -279,7 +284,7 @@ class Payload
         }
 
         if (count($this->_data) > 1) {
-            $this->isCollection = true;
+            $this->_isCollection = true;
         }
 
         return $this;

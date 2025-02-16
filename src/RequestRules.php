@@ -5,6 +5,8 @@ use Lead\Resource\Chaos\JsonApi\CidResolver;
 
 class RequestRules
 {
+    protected $_operators = [];
+
     protected $_controller = null;
 
     protected $_allowedFields = [];

@@ -218,9 +218,9 @@ class Controller
     public function router($router = null)
     {
         if (!func_num_args()) {
-            return $this->_router;
+            return $this->router;
         }
-        $this->_router = $router;
+        $this->router = $router;
         return $this;
     }
 
